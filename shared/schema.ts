@@ -1,35 +1,63 @@
 import { z } from "zod";
+import { pgTable, varchar, text, timestamp, integer, pgEnum } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 
-// Message Schema
-export const messageSchema = z.object({
-  id: z.string(),
-  conversationId: z.string(),
-  content: z.string(),
-  role: z.enum(["buyer", "agent", "system"]),
-  timestamp: z.string(),
-  platform: z.enum(["LINE", "WhatsApp", "Messenger", "Instagram", "Email"]).optional(),
+// Enums
+export const platformEnum = pgEnum("platform", ["LINE", "WhatsApp", "Messenger", "Instagram", "Email"]);
+export const roleEnum = pgEnum("role", ["buyer", "agent", "system"]);
+export const leadScoreEnum = pgEnum("lead_score", ["hot", "warm", "cold"]);
+
+// Conversations Table
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  buyerName: varchar("buyer_name", { length: 255 }).notNull(),
+  lastMessage: text("last_message").notNull().default(""),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  platform: platformEnum("platform").notNull(),
+  unreadCount: integer("unread_count").default(0),
+  leadScore: leadScoreEnum("lead_score"),
 });
 
-export type Message = z.infer<typeof messageSchema>;
-
-export const insertMessageSchema = messageSchema.omit({ id: true, timestamp: true });
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
-
-// Conversation Schema
-export const conversationSchema = z.object({
-  id: z.string(),
-  buyerName: z.string(),
-  lastMessage: z.string(),
-  timestamp: z.string(),
-  platform: z.enum(["LINE", "WhatsApp", "Messenger", "Instagram", "Email"]),
-  unreadCount: z.number().optional(),
-  leadScore: z.enum(["hot", "warm", "cold"]).optional(),
+// Messages Table
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  conversationId: varchar("conversation_id", { length: 255 }).notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  role: roleEnum("role").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  platform: platformEnum("platform"),
 });
 
-export type Conversation = z.infer<typeof conversationSchema>;
+// Relations
+export const conversationsRelations = relations(conversations, ({ many }) => ({
+  messages: many(messages),
+}));
 
-export const insertConversationSchema = conversationSchema.omit({ id: true, timestamp: true, lastMessage: true });
-export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
+// Types from Drizzle tables
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+
+// Insert schemas with validation
+export const insertConversationSchema = createInsertSchema(conversations).omit({ 
+  id: true, 
+  timestamp: true, 
+  lastMessage: true 
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({ 
+  id: true, 
+  timestamp: true 
+});
 
 // Lead Analysis Request Schema
 export const leadAnalysisRequestSchema = z.object({
