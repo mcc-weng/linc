@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messages = await storage.getMessages(id);
       
       if (messages.length === 0) {
-        return res.status(400).json({ error: "No messages to analyze" });
+        return res.status(400).json({ error: "對話沒有訊息可供分析" });
       }
 
       const analysis = await analyzeConversation(messages);
@@ -84,7 +84,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(analysis);
     } catch (error) {
       console.error("Error analyzing conversation:", error);
-      res.status(500).json({ error: "Failed to analyze conversation" });
+      
+      const errorMessage = error instanceof Error ? error.message : "AI 分析服務發生錯誤";
+      res.status(500).json({ 
+        error: errorMessage,
+      });
     }
   });
 

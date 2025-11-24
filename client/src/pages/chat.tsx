@@ -9,6 +9,7 @@ import ConversationList from "@/components/ConversationList";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { LeadAnalysisResponse, Conversation, Message } from "@shared/schema";
 
 export default function Chat() {
@@ -17,6 +18,7 @@ export default function Chat() {
   const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(true);
   const [isConversationListOpen, setIsConversationListOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
@@ -43,6 +45,13 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversationId, "messages"] });
     },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "發送訊息失敗",
+        description: error.message || "無法發送訊息，請稍後再試",
+      });
+    },
   });
 
   const analyzeMutation = useMutation({
@@ -54,6 +63,17 @@ export default function Chat() {
       setAnalysis(data);
       setIsAnalysisPanelOpen(true);
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({
+        title: "AI 分析完成",
+        description: `客戶評級：${data.leadScore === "hot" ? "熱客戶" : data.leadScore === "warm" ? "溫客戶" : "冷客戶"}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "AI 分析失敗",
+        description: error.message || "無法分析對話，請稍後再試",
+      });
     },
   });
 

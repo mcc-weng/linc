@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import type { Message, LeadAnalysisResponse, BuyerProfile } from "@shared/schema";
+import { zodResponseFormat } from "openai/helpers/zod";
+import type { Message, LeadAnalysisResponse } from "@shared/schema";
+import { leadAnalysisResponseSchema } from "@shared/schema";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -31,14 +33,6 @@ const SYSTEM_PROMPT = `你是一位專業的澳洲房地產經紀人AI助理，�
 4. 包含行動呼籲（如：安排看房、提供物件資訊、討論預算）
 5. 每個回覆建議應該有不同的側重點和策略`;
 
-interface AnalysisResult {
-  leadScore: "hot" | "warm" | "cold";
-  leadReason: string;
-  followUpInDays: number;
-  followUpMessage: string;
-  buyerProfile: BuyerProfile;
-  replies: [string, string, string];
-}
 
 export async function analyzeConversation(messages: Message[]): Promise<LeadAnalysisResponse> {
   const conversationText = messages
@@ -78,52 +72,36 @@ ${conversationText}
 - 根據對話內容判斷買家的真實需求和購買意願`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const completion = await (openai.beta as any).chat.completions.parse({
+      model: "gpt-4o-2024-08-06",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
       temperature: 0.7,
-      response_format: { type: "json_object" },
+      response_format: zodResponseFormat(leadAnalysisResponseSchema, "lead_analysis"),
     });
 
-    const content = completion.choices[0].message.content;
-    if (!content) {
-      throw new Error("OpenAI returned empty response");
+    const parsed = completion.choices[0].message.parsed;
+    
+    if (!parsed) {
+      const refusal = completion.choices[0].message.refusal;
+      if (refusal) {
+        console.error("OpenAI refused the request:", refusal);
+        throw new Error("AI 拒絕處理此請求");
+      }
+      console.error("OpenAI returned no parsed content");
+      throw new Error("AI 回覆內容為空");
     }
 
-    const result: AnalysisResult = JSON.parse(content);
-
-    return {
-      leadScore: result.leadScore,
-      leadReason: result.leadReason,
-      followUpInDays: result.followUpInDays,
-      followUpMessage: result.followUpMessage,
-      buyerProfile: result.buyerProfile,
-      replies: result.replies,
-    };
+    return parsed;
   } catch (error) {
     console.error("OpenAI analysis error:", error);
     
-    return {
-      leadScore: "cold",
-      leadReason: "無法分析對話內容",
-      followUpInDays: 7,
-      followUpMessage: "您好！想請問您最近看房的進度如何？有任何問題都可以隨時問我。",
-      buyerProfile: {
-        budget: null,
-        location: null,
-        propertyType: null,
-        purpose: null,
-        timeline: null,
-        notes: null,
-      },
-      replies: [
-        "感謝您的詢問！我很樂意為您提供更多資訊。請問您的預算大概是多少？這樣我可以推薦更適合的物件給您。",
-        "我們有許多優質物件可以推薦。請問您對哪個區域比較感興趣？比如 Chatswood、North Sydney 或 Bondi 這些區域都很受歡迎。",
-        "我可以安排時間帶您看房，讓您更了解市場行情。請問您這週或下週有空嗎？",
-      ],
-    };
+    if (error instanceof Error && error.message.includes("AI")) {
+      throw error;
+    }
+    
+    throw new Error("AI 分析服務暫時無法使用，請稍後再試");
   }
 }

@@ -57,7 +57,7 @@ export const leadAnalysisResponseSchema = z.object({
   followUpInDays: z.number(),
   followUpMessage: z.string(),
   buyerProfile: buyerProfileSchema,
-  replies: z.array(z.string()).length(3),
+  replies: z.tuple([z.string(), z.string(), z.string()]),
 });
 
 export type LeadAnalysisResponse = z.infer<typeof leadAnalysisResponseSchema>;
