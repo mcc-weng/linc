@@ -26,7 +26,6 @@ export default function AnalysisPanelExample() {
       <AnalysisPanel
         analysis={mockAnalysis}
         onClose={() => console.log('Close panel')}
-        onSelectReply={(reply) => console.log('Selected reply:', reply)}
       />
     </div>
   );

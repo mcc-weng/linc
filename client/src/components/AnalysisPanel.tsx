@@ -2,15 +2,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Copy, Check, ThermometerSun, Flame, Snowflake, X } from "lucide-react";
-import { useState } from "react";
+import { ThermometerSun, Flame, Snowflake, X } from "lucide-react";
 import type { LeadAnalysisResponse } from "@shared/schema";
 
 interface AnalysisPanelProps {
   analysis: LeadAnalysisResponse | null;
   onClose: () => void;
-  onSelectReply: (reply: string) => void;
 }
 
 const leadScoreConfig = {
@@ -31,9 +28,7 @@ const leadScoreConfig = {
   },
 };
 
-export default function AnalysisPanel({ analysis, onClose, onSelectReply }: AnalysisPanelProps) {
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-
+export default function AnalysisPanel({ analysis, onClose }: AnalysisPanelProps) {
   if (!analysis) {
     return (
       <div className="h-full flex items-center justify-center p-8 text-center">
@@ -47,12 +42,6 @@ export default function AnalysisPanel({ analysis, onClose, onSelectReply }: Anal
 
   const config = leadScoreConfig[analysis.leadScore];
   const Icon = config.icon;
-
-  const handleCopy = async (text: string, index: number) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-  };
 
   return (
     <div className="h-full flex flex-col" data-testid="analysis-panel">
@@ -134,38 +123,6 @@ export default function AnalysisPanel({ analysis, onClose, onSelectReply }: Anal
             </CardContent>
           </Card>
 
-          {/* AI Replies */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold">建議回覆</h4>
-            {analysis.replies.map((reply, index) => (
-              <Card key={index} className="hover-elevate cursor-pointer" onClick={() => onSelectReply(reply)}>
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">選項 {index + 1}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopy(reply, index);
-                      }}
-                      className="h-8 px-2"
-                      data-testid={`button-copy-reply-${index + 1}`}
-                    >
-                      {copiedIndex === index ? (
-                        <Check className="w-3 h-3" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-sm leading-relaxed" data-testid={`text-reply-${index + 1}`}>
-                    {reply.length > 80 ? `${reply.slice(0, 80)}...` : reply}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </div>
       </ScrollArea>
     </div>

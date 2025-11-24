@@ -98,15 +98,6 @@ export default function Chat() {
     }, 2000);
   };
 
-  const handleSelectReply = (reply: string) => {
-    const agentMessage: Message = {
-      id: Date.now().toString(),
-      content: reply,
-      role: "agent",
-      timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages(prev => [...prev, agentMessage]);
-  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -172,6 +163,7 @@ export default function Chat() {
             onAnalyze={handleAnalyze}
             isLoading={isLoading}
             hasMessages={messages.filter(m => m.role !== "system").length > 0}
+            analysis={analysis}
           />
         </div>
 
@@ -184,7 +176,6 @@ export default function Chat() {
           <AnalysisPanel
             analysis={analysis}
             onClose={() => setIsPanelOpen(false)}
-            onSelectReply={handleSelectReply}
           />
         </div>
       </div>
