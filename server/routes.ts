@@ -79,6 +79,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateConversation(id, {
         leadScore: analysis.leadScore,
+        lastAnalysis: analysis,
+        lastAnalysisTimestamp: new Date().toISOString(),
       });
 
       res.json(analysis);
