@@ -1,29 +1,39 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+// Message Schema
+export const messageSchema = z.object({
+  id: z.string(),
+  conversationId: z.string(),
+  content: z.string(),
+  role: z.enum(["buyer", "agent", "system"]),
+  timestamp: z.string(),
+  platform: z.enum(["LINE", "WhatsApp", "Messenger", "Instagram", "Email"]).optional(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export type Message = z.infer<typeof messageSchema>;
+
+export const insertMessageSchema = messageSchema.omit({ id: true, timestamp: true });
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+// Conversation Schema
+export const conversationSchema = z.object({
+  id: z.string(),
+  buyerName: z.string(),
+  lastMessage: z.string(),
+  timestamp: z.string(),
+  platform: z.enum(["LINE", "WhatsApp", "Messenger", "Instagram", "Email"]),
+  unreadCount: z.number().optional(),
+  leadScore: z.enum(["hot", "warm", "cold"]).optional(),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type Conversation = z.infer<typeof conversationSchema>;
+
+export const insertConversationSchema = conversationSchema.omit({ id: true, timestamp: true, lastMessage: true });
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
 
 // Lead Analysis Request Schema
 export const leadAnalysisRequestSchema = z.object({
-  message: z.string().min(1, "買家訊息不能為空"),
-  source: z.enum(["LINE", "Messenger", "WhatsApp", "Instagram", "Email"]),
-  customerType: z.enum(["買家", "投資客", "租客", "其他"]),
-  replyLanguage: z.enum(["中文", "英文", "雙語"]),
-  notes: z.string().optional(),
+  conversationId: z.string(),
 });
 
 export type LeadAnalysisRequest = z.infer<typeof leadAnalysisRequestSchema>;
