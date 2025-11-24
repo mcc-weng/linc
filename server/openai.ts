@@ -65,14 +65,15 @@ ${conversationText}
   ]
 }
 
-注意：
+**重要要求：**
 - 所有文字內容必須使用繁體中文
-- replies 必須是包含恰好3個字串的陣列
+- **replies 陣列必須包含恰好3個回覆建議，不能多也不能少**
 - 每個回覆建議應該在100-200字之間
-- 根據對話內容判斷買家的真實需求和購買意願`;
+- 根據對話內容判斷買家的真實需求和購買意願
+- 每個回覆建議必須是完整的字串，包含完整的回覆內容`;
 
   try {
-    const completion = await (openai.beta as any).chat.completions.parse({
+    const completion = await openai.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
