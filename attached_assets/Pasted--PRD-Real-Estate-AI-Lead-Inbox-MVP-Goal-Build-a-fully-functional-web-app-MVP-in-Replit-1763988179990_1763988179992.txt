@@ -1,0 +1,285 @@
+🧱 PRD – Real Estate AI Lead Inbox (繁體中文版 MVP)
+
+Goal: Build a fully functional web app MVP in Replit.
+
+1. 🎯 Product Summary
+
+Build a web app called 「AI 房地產詢問助理」 that allows a real estate agent to manage inbound buyer enquiries from LINE/FB/IG/WhatsApp by pasting messages for v1, with planned future webhook/API integration.
+
+The app should:
+
+Let the agent paste buyer messages into an inbox
+
+Automatically:
+
+分析訊息
+
+建立買家資料（Buyer Profile）
+
+評分潛在客戶（Lead Score: hot/warm/cold）
+
+建議三個回覆內容（中/英雙語）
+
+建議跟進時間（Follow-up time）
+
+Display everything in a clean UI (in Traditional Chinese)
+
+This is a local MVP, not a full production CRM.
+
+2. 🏗️ Core Features
+2.1. Inbound Message Input (v1 — paste only)
+
+A text area for the agent to paste a buyer’s message
+
+Dropdown fields:
+
+「訊息來源」: LINE / Messenger / WhatsApp / Instagram / Email
+
+「客戶類型」: 買家 / 投資客 / 租客 / 其他
+
+「回覆語言」: 中文 / 英文 / 雙語
+
+「備註（選填）」: 自訂說明
+
+2.2. AI Lead Processing
+
+When the agent submits the message, the backend calls the OpenAI API (GPT-4.1 or 4.1-mini) and performs:
+
+A. Lead Analysis
+
+判斷客戶意圖（Intent）
+
+Lead Score:
+
+熱（Hot）
+
+溫（Warm）
+
+冷（Cold）
+
+原因說明（Lead Reason）
+
+建議何時跟進（例如 1–3 天後）
+
+B. Buyer Profile Extraction
+
+從訊息中萃取：
+
+預算
+
+想買哪區
+
+想買哪種房型（Apartment / Townhouse / House）
+
+買房目的（自住 / 投資）
+
+時間需求
+
+特殊條件
+
+C. Reply Suggestions
+
+產生 三個回覆：
+
+自然、有人味
+
+可選中文、英文或雙語
+
+適用 LINE/FB 風格
+
+每個包含明確 CTA（例如：要不要預約看房？）
+
+D. Follow-up Suggestion
+
+建議跟進時間（如：2 天後）
+
+自動產生一段「跟進訊息」
+
+2.3. Result Display UI (Traditional Chinese)
+
+After AI finishes:
+
+「買家總覽」卡片
+
+潛在客戶評分
+
+分析原因
+
+建議跟進時間
+
+建議跟進訊息（可複製）
+
+「買家資料（Buyer Profile）」卡片
+
+預算
+
+想買地區
+
+房型偏好
+
+目的
+
+其他 extracted info
+
+「AI 回覆建議」
+
+Option 1
+
+Option 2
+
+Option 3
+Each with「複製」按鈕。
+
+3. 🌐 Tech Stack Requirements
+
+Use the stack taught in the tutorial:
+
+Frontend: HTML, CSS, JS (or simple React)
+
+Backend: Python Flask or Node.js (your choice)
+
+AI: OpenAI Chat Completions
+
+Deployment: Replit Web App
+
+Styling: Simple, clean, mobile-friendly
+
+UI Language: 100% Traditional Chinese
+
+4. 🤖 System Prompt Requirements
+
+Backend needs to send this system prompt to the model:
+
+你是一個專門協助澳洲房地產仲介的 AI 助理，服務主要來自台灣與華人買家。
+
+你的任務：
+1. 分析買家訊息。
+2. 判斷客戶意願與購買可能性（hot / warm / cold）。
+3. 建立「買家資料」(Buyer Profile)。
+4. 提供 3 種回覆選項（自然、有溫度、非機器人感覺）。
+5. 內容可用中文、英文或雙語。
+6. 提供「建議跟進時間」與「跟進訊息」。
+
+規則：
+- 使用澳洲房地產背景知識（印花稅、付款方式、settlement、apartment vs house）。
+- 不可以編造數據或價格。
+- LINE / FB / IG 風格需簡潔、好理解。
+- 中文需使用台灣繁體中文。
+- 回覆中須有：友善、專業、可信任的語氣。
+
+輸出格式（JSON）：
+{
+  "leadScore": "hot" | "warm" | "cold",
+  "leadReason": "<string>",
+  "followUpInDays": number,
+  "followUpMessage": "<string>",
+  "buyerProfile": {
+    "budget": "<string or null>",
+    "location": "<string or null>",
+    "propertyType": "<string or null>",
+    "purpose": "<string or null>",
+    "timeline": "<string or null>",
+    "notes": "<string or null>"
+  },
+  "replies": ["<reply1>", "<reply2>", "<reply3>"]
+}
+
+5. 🖥️ UI Requirements (Traditional Chinese)
+Main Page Sections:
+上方：輸入區塊
+
+Textarea:
+Label: 「買家訊息」
+Placeholder: 「請貼上來自 LINE / FB / IG / WhatsApp 的訊息…」
+
+Dropdowns:
+「訊息來源」
+「客戶類型」
+「回覆語言」
+「備註（選填）」
+
+Submit button:
+「分析買家並產生回覆」
+
+下方：AI 回傳結果
+卡片 1：客戶評分
+
+「客戶熱度」: HOT / WARM / COLD
+
+「原因」
+
+「建議跟進時間」
+
+「跟進訊息」(附「複製」按鈕)
+
+卡片 2：買家資料（Buyer Profile）
+
+顯示 extracted fields.
+
+卡片 3：AI 建議回覆
+
+每則回覆旁邊有「複製」按鈕。
+
+6. 🚦 Done Criteria
+
+The MVP is complete when:
+
+App runs in Replit on a public URL
+
+UI is fully in Traditional Chinese
+
+Agent can paste a message
+
+AI returns:
+
+Lead Score
+
+Buyer Profile
+
+Follow-up
+
+3 Replies
+
+Copy buttons work
+
+Styling is usable on mobile
+
+JSON parsing works without breaking
+
+No database required for v1
+
+7. 📈 Future Extensions (not in MVP)
+
+Replit agent should ignore this for now but codebase must be expandable.
+
+LINE Webhook integration
+
+FB Messenger webhook
+
+Full “Lead Inbox” with history
+
+Auto-send via LINE API
+
+Follow-up reminders system
+
+Seller-vendor communication module
+
+Buyer booklet generator
+
+Property matching AI
+
+8. 📌 Deliverables Expected from Replit Agent
+
+Full project scaffold
+
+Frontend page (Traditional Chinese UI)
+
+Backend API route
+
+AI logic with JSON output enforcement
+
+Deployment in Replit
+
+Instructions for adding API keys
+
+A working demo in browser
