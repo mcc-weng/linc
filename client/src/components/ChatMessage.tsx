@@ -6,7 +6,7 @@ interface ChatMessageProps {
   content: string;
   role: "buyer" | "agent" | "system";
   timestamp?: string;
-  platform?: "LINE" | "WhatsApp" | "Messenger" | "Instagram" | "Email";
+  platform?: string;
 }
 
 export default function ChatMessage({ content, role, timestamp, platform }: ChatMessageProps) {

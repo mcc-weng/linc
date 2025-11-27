@@ -1,49 +1,48 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { User, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-
-interface Conversation {
-  id: string;
-  buyerName: string;
-  lastMessage: string;
-  timestamp: string;
-  platform: "LINE" | "WhatsApp" | "Messenger" | "Instagram" | "Email";
-  unreadCount?: number;
-  leadScore?: "hot" | "warm" | "cold";
-}
+import type { Conversation } from "@shared/schema";
 
 interface ConversationListProps {
   conversations: Conversation[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
   onClose: () => void;
 }
 
-const platformColors = {
-  LINE: "bg-green-500",
-  WhatsApp: "bg-green-600",
-  Messenger: "bg-blue-500",
-  Instagram: "bg-pink-500",
-  Email: "bg-gray-500",
-};
-
-const leadScoreColors = {
+const leadScoreColors: Record<string, string> = {
   hot: "bg-destructive",
   warm: "bg-primary",
   cold: "bg-muted",
 };
+
+function formatTimeAgo(timestamp: Date | string): string {
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "剛剛";
+  if (diffMins < 60) return `${diffMins} 分鐘前`;
+  if (diffHours < 24) return `${diffHours} 小時前`;
+  if (diffDays < 7) return `${diffDays} 天前`;
+  
+  return date.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' });
+}
 
 export default function ConversationList({ conversations, selectedId, onSelect, onClose }: ConversationListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredConversations = conversations.filter(conv =>
     conv.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    (conv.lastMessage || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -96,6 +95,9 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
               >
                 {/* Avatar */}
                 <Avatar className="w-10 h-10 flex-shrink-0">
+                  {conv.profilePictureUrl ? (
+                    <AvatarImage src={conv.profilePictureUrl} alt={conv.buyerName} />
+                  ) : null}
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <User className="w-5 h-5" />
                   </AvatarFallback>
@@ -105,11 +107,13 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="font-medium text-sm truncate">{conv.buyerName}</span>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">{conv.timestamp}</span>
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {formatTimeAgo(conv.timestamp)}
+                    </span>
                   </div>
                   
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                    {conv.lastMessage}
+                    {conv.lastMessage || "尚無訊息"}
                   </p>
 
                   <div className="flex items-center gap-2">
@@ -120,7 +124,7 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
 
                     {/* Lead Score Indicator */}
                     {conv.leadScore && (
-                      <div className={cn("w-2 h-2 rounded-full", leadScoreColors[conv.leadScore])} />
+                      <div className={cn("w-2 h-2 rounded-full", leadScoreColors[conv.leadScore] || "bg-muted")} />
                     )}
 
                     {/* Unread Count */}

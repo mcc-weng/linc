@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import AnalysisPanel from "@/components/AnalysisPanel";
@@ -12,8 +13,16 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { LeadAnalysisResponse, Conversation, Message } from "@shared/schema";
 
+interface FacebookStatus {
+  configured: boolean;
+  pageTokenSet: boolean;
+  verifyTokenSet: boolean;
+  appSecretSet: boolean;
+  webhookUrl: string;
+}
+
 export default function Chat() {
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>("1");
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(1);
   const [analysis, setAnalysis] = useState<LeadAnalysisResponse | null>(null);
   const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(true);
   const [isConversationListOpen, setIsConversationListOpen] = useState(true);
@@ -22,6 +31,10 @@ export default function Chat() {
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
+  });
+
+  const { data: facebookStatus } = useQuery<FacebookStatus>({
+    queryKey: ["/api/facebook/status"],
   });
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery<Message[]>({
@@ -34,7 +47,7 @@ export default function Chat() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (data: { conversationId: string; content: string; role: string; platform?: string }) =>
+    mutationFn: (data: { conversationId: number; content: string; role: string; platform?: string }) =>
       apiRequest("POST", `/api/conversations/${data.conversationId}/messages`, {
         content: data.content,
         role: data.role,
@@ -55,7 +68,7 @@ export default function Chat() {
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: async (conversationId: string) => {
+    mutationFn: async (conversationId: number) => {
       const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze`, { conversationId });
       return response.json() as Promise<LeadAnalysisResponse>;
     },
@@ -95,7 +108,7 @@ export default function Chat() {
     sendMessageMutation.mutate({
       conversationId: selectedConversationId,
       content,
-      role: "buyer",
+      role: "agent",
       platform,
     });
   };
@@ -105,11 +118,15 @@ export default function Chat() {
     analyzeMutation.mutate(selectedConversationId);
   };
 
-  const handleSelectConversation = (id: string) => {
+  const handleSelectConversation = (id: number) => {
     setSelectedConversationId(id);
     setAnalysis(null);
   };
 
+  const formatTimestamp = (timestamp: Date | string): string => {
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const isLoading = analyzeMutation.isPending || sendMessageMutation.isPending;
 
@@ -137,18 +154,38 @@ export default function Chat() {
             {selectedConversation ? selectedConversation.buyerName : "AI 房地產詢問助理"}
           </h1>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
-          data-testid="button-toggle-analysis"
-        >
-          {isAnalysisPanelOpen ? (
-            <PanelRightClose className="w-5 h-5" />
-          ) : (
-            <PanelRightOpen className="w-5 h-5" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Facebook Status Indicator */}
+          <Badge 
+            variant={facebookStatus?.configured ? "default" : "secondary"}
+            className="gap-1"
+            data-testid="badge-facebook-status"
+          >
+            {facebookStatus?.configured ? (
+              <>
+                <Wifi className="w-3 h-3" />
+                <span className="hidden sm:inline">Facebook 已連接</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3" />
+                <span className="hidden sm:inline">Facebook 未連接</span>
+              </>
+            )}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsAnalysisPanelOpen(!isAnalysisPanelOpen)}
+            data-testid="button-toggle-analysis"
+          >
+            {isAnalysisPanelOpen ? (
+              <PanelRightClose className="w-5 h-5" />
+            ) : (
+              <PanelRightOpen className="w-5 h-5" />
+            )}
+          </Button>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -189,9 +226,9 @@ export default function Chat() {
                     <ChatMessage
                       key={message.id}
                       content={message.content}
-                      role={message.role}
-                      timestamp={message.timestamp}
-                      platform={message.platform}
+                      role={message.role as "buyer" | "agent" | "system"}
+                      timestamp={formatTimestamp(message.timestamp)}
+                      platform={message.platform || undefined}
                     />
                   ))}
                   <div ref={scrollRef} />
