@@ -35,7 +35,7 @@ export default function Chat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: (data: { conversationId: string; content: string; role: string; platform?: string }) =>
-      apiRequest("POST", `/api/conversations/${data.conversationId}/messages`, {
+      apiRequest(`/api/conversations/${data.conversationId}/messages`, "POST", {
         content: data.content,
         role: data.role,
         conversationId: data.conversationId,
@@ -56,7 +56,7 @@ export default function Chat() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (conversationId: string) => {
-      const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze`, { conversationId });
+      const response = await apiRequest(`/api/conversations/${conversationId}/analyze`, "POST", { conversationId });
       return response.json() as Promise<LeadAnalysisResponse>;
     },
     onSuccess: (data: LeadAnalysisResponse) => {

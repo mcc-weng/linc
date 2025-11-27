@@ -35,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validation = insertMessageSchema.safeParse({
         ...req.body,
-        conversationId: parseInt(id),
+        conversationId: id,
       });
 
       if (!validation.success) {
@@ -79,8 +79,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateConversation(id, {
         leadScore: analysis.leadScore,
-        lastAnalysis: analysis,
-        lastAnalysisTimestamp: new Date(),
       });
 
       res.json(analysis);
