@@ -21,14 +21,21 @@ import {
   User,
   MapPin,
   Target,
-  MessageSquare
+  MessageSquare,
+  Star
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getTranslation, translations } from "@/lib/language";
+import ListingSelectPopover from "@/components/ListingSelectPopover";
 import type { LeadAnalysisResponse, AISummary, Conversation, Listing, QuickReplyTemplate } from "@shared/schema";
+
+interface ConversationListingsResponse {
+  listings: Listing[];
+  primaryListingId: number | null;
+}
 
 interface FollowUpStatus {
   needsFollowUp: boolean;
@@ -84,6 +91,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [showListingSelect, setShowListingSelect] = useState(false);
+  const [pendingQuickReply, setPendingQuickReply] = useState<QuickReplyTemplate | null>(null);
+  const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!carouselRef.current) return;
@@ -125,11 +135,25 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     enabled: !!conversation?.id,
   });
 
+  // Fetch conversation listings (multi-listing support)
+  const { data: conversationListings } = useQuery<ConversationListingsResponse>({
+    queryKey: ["/api/conversations", conversation?.id, "listings"],
+    queryFn: () => 
+      conversation?.id 
+        ? fetch(`/api/conversations/${conversation.id}/listings`).then(r => r.json())
+        : Promise.resolve({ listings: [], primaryListingId: null }),
+    enabled: !!conversation?.id,
+  });
+
+  const linkedListings = conversationListings?.listings || [];
+  const primaryListingId = conversationListings?.primaryListingId;
+  const effectiveListingId = selectedListingId || primaryListingId || conversation?.listingId;
+
   // Fetch quick reply templates
   const { data: quickReplies = [] } = useQuery<QuickReplyTemplate[]>({
-    queryKey: ["/api/quick-replies", conversation?.listingId],
+    queryKey: ["/api/quick-replies", effectiveListingId],
     queryFn: () => 
-      fetch(`/api/quick-replies${conversation?.listingId ? `?listingId=${conversation.listingId}` : ""}`).then(r => r.json()),
+      fetch(`/api/quick-replies${effectiveListingId ? `?listingId=${effectiveListingId}` : ""}`).then(r => r.json()),
     enabled: !!conversation,
   });
 
@@ -184,15 +208,15 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     },
   });
 
-  // Handle quick reply click
-  const handleQuickReply = async (template: QuickReplyTemplate) => {
+  // Handle quick reply click - with multi-listing support
+  const handleQuickReply = async (template: QuickReplyTemplate, listingId?: number) => {
     try {
       const response = await fetch("/api/quick-replies/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           category: template.category,
-          listingId: conversation?.listingId,
+          listingId: listingId || effectiveListingId,
         }),
       });
       const { message } = await response.json();
@@ -203,6 +227,25 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         title: language === "zh" ? "發送失敗" : "Send Failed",
         description: language === "zh" ? "無法生成快速回覆" : "Unable to generate quick reply",
       });
+    }
+  };
+
+  // Handle quick reply button click with multi-listing check
+  const onQuickReplyClick = (template: QuickReplyTemplate) => {
+    if (linkedListings.length > 1 && !selectedListingId) {
+      setPendingQuickReply(template);
+      setShowListingSelect(true);
+    } else {
+      handleQuickReply(template);
+    }
+  };
+
+  // Handle listing selection from popover
+  const handleListingSelected = (listing: Listing) => {
+    setSelectedListingId(listing.id);
+    if (pendingQuickReply) {
+      handleQuickReply(pendingQuickReply, listing.id);
+      setPendingQuickReply(null);
     }
   };
 
@@ -302,7 +345,32 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           {/* Quick Reply Buttons */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">{t("quick_reply")}</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm">{t("quick_reply")}</CardTitle>
+                {linkedListings.length > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {effectiveListingId && (
+                      <>
+                        <Home className="w-3 h-3" />
+                        <span className="max-w-[100px] truncate">
+                          {linkedListings.find(l => l.id === effectiveListingId)?.title || t("primary_listing")}
+                        </span>
+                        {linkedListings.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 px-1 text-xs"
+                            onClick={() => setShowListingSelect(true)}
+                            data-testid="button-change-listing"
+                          >
+                            ({linkedListings.length})
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-wrap gap-2">
@@ -325,7 +393,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                           variant="outline"
                           size="sm"
                           className="justify-start text-xs min-w-0 h-auto py-2 flex-1 basis-[calc(50%-0.25rem)]"
-                          onClick={() => handleQuickReply(template)}
+                          onClick={() => onQuickReplyClick(template)}
                           data-testid={`quick-reply-${template.id}`}
                         >
                           <Icon className="w-3 h-3 mr-1 flex-shrink-0 mt-0.5" />
@@ -337,6 +405,15 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               </div>
             </CardContent>
           </Card>
+
+          {/* Listing Select Popover for multi-listing disambiguation */}
+          <ListingSelectPopover
+            open={showListingSelect}
+            onOpenChange={setShowListingSelect}
+            listings={linkedListings}
+            primaryListingId={primaryListingId}
+            onSelect={handleListingSelected}
+          />
 
           {/* AI Summary */}
           <Card>

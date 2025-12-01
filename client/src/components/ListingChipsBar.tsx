@@ -61,11 +61,10 @@ export default function ListingChipsBar({ conversationId }: ListingChipsBarProps
   });
 
   const linkListingMutation = useMutation({
-    mutationFn: (data: { listingId: number; setPrimary?: boolean }) => 
-      apiRequest(`/api/conversations/${conversationId}/listings`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+    mutationFn: async (data: { listingId: number; setPrimary?: boolean }) => {
+      const res = await apiRequest("POST", `/api/conversations/${conversationId}/listings`, data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversationId, "listings"] });
       toast({
@@ -76,10 +75,10 @@ export default function ListingChipsBar({ conversationId }: ListingChipsBarProps
   });
 
   const unlinkListingMutation = useMutation({
-    mutationFn: (listingId: number) => 
-      apiRequest(`/api/conversations/${conversationId}/listings/${listingId}`, {
-        method: "DELETE",
-      }),
+    mutationFn: async (listingId: number) => {
+      const res = await apiRequest("DELETE", `/api/conversations/${conversationId}/listings/${listingId}`);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversationId, "listings"] });
       toast({
@@ -89,21 +88,20 @@ export default function ListingChipsBar({ conversationId }: ListingChipsBarProps
   });
 
   const setPrimaryMutation = useMutation({
-    mutationFn: (listingId: number) => 
-      apiRequest(`/api/conversations/${conversationId}/listings/${listingId}/primary`, {
-        method: "PUT",
-      }),
+    mutationFn: async (listingId: number) => {
+      const res = await apiRequest("PUT", `/api/conversations/${conversationId}/listings/${listingId}/primary`);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversationId, "listings"] });
     },
   });
 
   const createListingMutation = useMutation({
-    mutationFn: (data: { title: string; address?: string; priceGuide?: string }) => 
-      apiRequest("/api/listings", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+    mutationFn: async (data: { title: string; address?: string; priceGuide?: string }): Promise<Listing> => {
+      const res = await apiRequest("POST", "/api/listings", data);
+      return res.json();
+    },
     onSuccess: async (newListing: Listing) => {
       queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       await linkListingMutation.mutateAsync({ listingId: newListing.id, setPrimary: true });
