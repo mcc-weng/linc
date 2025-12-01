@@ -306,24 +306,34 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                {quickReplies.slice(0, 6).map((template) => {
-                  const Icon = quickReplyIcons[template.category] || MessageSquare;
-                  const categoryKey = `quick_reply_${template.category}` as keyof typeof translations.zh;
-                  const translatedLabel = t(categoryKey) || template.label;
-                  return (
-                    <Button
-                      key={template.id}
-                      variant="outline"
-                      size="sm"
-                      className="justify-start text-xs"
-                      onClick={() => handleQuickReply(template)}
-                      data-testid={`quick-reply-${template.id}`}
-                    >
-                      <Icon className="w-3 h-3 mr-1" />
-                      {translatedLabel}
-                    </Button>
-                  );
-                })}
+                {(() => {
+                  const seen = new Set<string>();
+                  return quickReplies
+                    .filter((template) => {
+                      if (seen.has(template.category)) return false;
+                      seen.add(template.category);
+                      return true;
+                    })
+                    .slice(0, 6)
+                    .map((template) => {
+                      const Icon = quickReplyIcons[template.category] || MessageSquare;
+                      const categoryKey = `quick_reply_${template.category}` as keyof typeof translations.zh;
+                      const translatedLabel = t(categoryKey) || template.label;
+                      return (
+                        <Button
+                          key={template.id}
+                          variant="outline"
+                          size="sm"
+                          className="justify-start text-xs"
+                          onClick={() => handleQuickReply(template)}
+                          data-testid={`quick-reply-${template.id}`}
+                        >
+                          <Icon className="w-3 h-3 mr-1" />
+                          {translatedLabel}
+                        </Button>
+                      );
+                    });
+                })()}
               </div>
             </CardContent>
           </Card>
