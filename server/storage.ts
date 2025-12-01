@@ -7,6 +7,8 @@ import {
   type InsertListing,
   type FollowUpLog,
   type InsertFollowUpLog,
+  type ConversationListing,
+  type InsertConversationListing,
   type BuyerProfile,
   type AISummary,
   type DashboardData,
@@ -14,7 +16,8 @@ import {
   conversations,
   messages,
   listings,
-  followUpLogs
+  followUpLogs,
+  conversationListings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, lt, isNull, or } from "drizzle-orm";
@@ -48,6 +51,13 @@ export interface IStorage {
   updateListing(id: number, updates: Partial<Listing>): Promise<Listing | undefined>;
   deleteListing(id: number): Promise<boolean>;
 
+  // Conversation Listings methods (multi-listing support)
+  getConversationListings(conversationId: number): Promise<Listing[]>;
+  linkListingToConversation(conversationId: number, listingId: number): Promise<ConversationListing>;
+  unlinkListingFromConversation(conversationId: number, listingId: number): Promise<boolean>;
+  setPrimaryListing(conversationId: number, listingId: number): Promise<Conversation | undefined>;
+  updateConversationListingUsage(conversationId: number, listingId: number): Promise<void>;
+
   // Follow-up methods
   getConversationsNeedingFollowUp(hoursThreshold: number): Promise<Conversation[]>;
   updateFollowUpStatus(conversationId: number, needsFollowUp: boolean): Promise<void>;
@@ -78,20 +88,24 @@ export class MemStorage implements IStorage {
   private messagesMap: Map<number, Message[]>;
   private listingsMap: Map<number, Listing>;
   private followUpLogsMap: Map<number, FollowUpLog[]>;
+  private conversationListingsMap: Map<number, ConversationListing[]>;
   private nextConversationId: number;
   private nextMessageId: number;
   private nextListingId: number;
   private nextFollowUpLogId: number;
+  private nextConversationListingId: number;
 
   constructor() {
     this.conversationsMap = new Map();
     this.messagesMap = new Map();
     this.listingsMap = new Map();
     this.followUpLogsMap = new Map();
+    this.conversationListingsMap = new Map();
     this.nextConversationId = 1;
     this.nextMessageId = 1;
     this.nextListingId = 1;
     this.nextFollowUpLogId = 1;
+    this.nextConversationListingId = 1;
     this.initializeMockData();
   }
 
@@ -477,6 +491,77 @@ export class MemStorage implements IStorage {
     return this.listingsMap.delete(id);
   }
 
+  // Conversation Listings methods (multi-listing support)
+  async getConversationListings(conversationId: number): Promise<Listing[]> {
+    const links = this.conversationListingsMap.get(conversationId) || [];
+    const listings: Listing[] = [];
+    for (const link of links) {
+      const listing = this.listingsMap.get(link.listingId);
+      if (listing && listing.isActive === 1) {
+        listings.push(listing);
+      }
+    }
+    return listings;
+  }
+
+  async linkListingToConversation(conversationId: number, listingId: number): Promise<ConversationListing> {
+    const existingLinks = this.conversationListingsMap.get(conversationId) || [];
+    
+    // Check if already linked
+    const existingLink = existingLinks.find(l => l.listingId === listingId);
+    if (existingLink) {
+      return existingLink;
+    }
+
+    const id = this.nextConversationListingId++;
+    const link: ConversationListing = {
+      id,
+      conversationId,
+      listingId,
+      linkedAt: new Date(),
+      lastUsedAt: new Date(),
+    };
+    
+    existingLinks.push(link);
+    this.conversationListingsMap.set(conversationId, existingLinks);
+    return link;
+  }
+
+  async unlinkListingFromConversation(conversationId: number, listingId: number): Promise<boolean> {
+    const links = this.conversationListingsMap.get(conversationId) || [];
+    const filtered = links.filter(l => l.listingId !== listingId);
+    
+    if (filtered.length === links.length) {
+      return false; // Nothing was removed
+    }
+    
+    this.conversationListingsMap.set(conversationId, filtered);
+    
+    // If this was the primary listing, clear it
+    const conversation = this.conversationsMap.get(conversationId);
+    if (conversation && conversation.listingId === listingId) {
+      await this.updateConversation(conversationId, { listingId: null });
+    }
+    
+    return true;
+  }
+
+  async setPrimaryListing(conversationId: number, listingId: number): Promise<Conversation | undefined> {
+    // Ensure the listing is linked to the conversation
+    await this.linkListingToConversation(conversationId, listingId);
+    
+    // Update the primary listing
+    return this.updateConversation(conversationId, { listingId });
+  }
+
+  async updateConversationListingUsage(conversationId: number, listingId: number): Promise<void> {
+    const links = this.conversationListingsMap.get(conversationId) || [];
+    const link = links.find(l => l.listingId === listingId);
+    if (link) {
+      link.lastUsedAt = new Date();
+    }
+  }
+
   // Follow-up methods
   async getConversationsNeedingFollowUp(hoursThreshold: number): Promise<Conversation[]> {
     const thresholdTime = new Date(Date.now() - hoursThreshold * 3600000);
@@ -712,6 +797,92 @@ export class DatabaseStorage implements IStorage {
   async deleteListing(id: number): Promise<boolean> {
     const result = await db.delete(listings).where(eq(listings.id, id));
     return true;
+  }
+
+  // Conversation Listings methods (multi-listing support)
+  async getConversationListings(conversationId: number): Promise<Listing[]> {
+    const links = await db
+      .select()
+      .from(conversationListings)
+      .where(eq(conversationListings.conversationId, conversationId));
+    
+    const listingsList: Listing[] = [];
+    for (const link of links) {
+      const [listing] = await db.select().from(listings).where(
+        and(eq(listings.id, link.listingId), eq(listings.isActive, 1))
+      );
+      if (listing) {
+        listingsList.push(listing);
+      }
+    }
+    return listingsList;
+  }
+
+  async linkListingToConversation(conversationId: number, listingId: number): Promise<ConversationListing> {
+    // Check if already linked
+    const [existing] = await db
+      .select()
+      .from(conversationListings)
+      .where(
+        and(
+          eq(conversationListings.conversationId, conversationId),
+          eq(conversationListings.listingId, listingId)
+        )
+      );
+    
+    if (existing) {
+      return existing;
+    }
+
+    const [link] = await db
+      .insert(conversationListings)
+      .values({ conversationId, listingId })
+      .returning();
+    return link;
+  }
+
+  async unlinkListingFromConversation(conversationId: number, listingId: number): Promise<boolean> {
+    await db
+      .delete(conversationListings)
+      .where(
+        and(
+          eq(conversationListings.conversationId, conversationId),
+          eq(conversationListings.listingId, listingId)
+        )
+      );
+    
+    // If this was the primary listing, clear it
+    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+    if (conversation && conversation.listingId === listingId) {
+      await db.update(conversations).set({ listingId: null }).where(eq(conversations.id, conversationId));
+    }
+    
+    return true;
+  }
+
+  async setPrimaryListing(conversationId: number, listingId: number): Promise<Conversation | undefined> {
+    // Ensure the listing is linked to the conversation
+    await this.linkListingToConversation(conversationId, listingId);
+    
+    // Update the primary listing
+    const [conversation] = await db
+      .update(conversations)
+      .set({ listingId })
+      .where(eq(conversations.id, conversationId))
+      .returning();
+    return conversation || undefined;
+  }
+
+  async updateConversationListingUsage(conversationId: number, listingId: number): Promise<void> {
+    await db
+      .update(conversationListings)
+      .set({ lastUsedAt: new Date() })
+      .where(
+        and(
+          eq(conversationListings.conversationId, conversationId),
+          eq(conversationListings.listingId, listingId)
+        )
+      );
   }
 
   // Follow-up methods

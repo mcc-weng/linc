@@ -1,0 +1,307 @@
+🧩 FEATURE REQUIREMENTS DOCUMENT (FRD)
+Feature: Property Listings + Multi-Listing Support
+
+Scope: Add data structures, UI, and workflow to support attaching one or multiple property listings to a Messenger conversation, and allow quick replies to pull property-specific data.
+
+-------------------------------------------------------
+1. Feature Summary
+-------------------------------------------------------
+
+The system currently supports:
+
+Messenger conversations
+
+AI message suggestions
+
+Quick reply buttons (but no property data)
+
+This update enables:
+
+Creating property listings
+
+Attaching one or more listings to a conversation
+
+Setting an active listing per conversation
+
+Having quick replies dynamically pull data from the active listing
+
+Disambiguating quick replies when multiple listings exist
+
+This does NOT create a full CRM or listing management portal — we keep it inline, simple, and lightweight.
+
+-------------------------------------------------------
+2. Data Model Changes
+-------------------------------------------------------
+2.1 New Table: Listing
+Listing {
+  id: string
+  title: string            // “12 Example St – 3BR Townhouse”
+  address: string
+  priceGuide: string       // “$1.15m–$1.25m”
+  inspectionTimes: string  // free text
+  infoPackUrl: string | null
+  contractUrl: string | null
+  floorplanUrl: string | null
+  createdAt: Date
+}
+
+2.2 Modify Conversation
+
+Add:
+
+Conversation {
+  primaryListingId: string | null
+}
+
+2.3 New Table: ConversationListing
+
+Links multiple listings to a single conversation.
+
+ConversationListing {
+  id: string
+  conversationId: string
+  listingId: string
+  lastUsedAt: Date
+}
+
+-------------------------------------------------------
+3. Backend: New & Updated Endpoints
+-------------------------------------------------------
+3.1 Create Listing
+POST /listings
+body: {
+  title,
+  address,
+  priceGuide,
+  inspectionTimes,
+  infoPackUrl,
+  contractUrl,
+  floorplanUrl
+}
+returns: Listing
+
+3.2 Link Listing to Conversation
+POST /conversations/:id/listings
+body: {
+  listingId
+}
+returns: { success: true }
+
+3.3 Set Primary Listing
+PATCH /conversations/:id/primary-listing
+body: {
+  listingId
+}
+
+3.4 Get Listings for Conversation
+GET /conversations/:id/listings
+returns: Listing[]
+
+-------------------------------------------------------
+4. UI / UX Requirements
+-------------------------------------------------------
+4.1 Listing Chips in Chat Header
+
+At the top of the conversation window:
+
+Properties in this chat:
+[● 12 Example St – 3BR] [○ 5 King Rd – 2BR] [+ Add Listing]
+
+Rules:
+
+● Filled dot = active listing (primaryListingId)
+
+○ Hollow dot = attached listings but not active
+
+Clicking a listing chip sets it as active (primaryListingId)
+
+Clicking + Add Listing opens “Add/Create Listing” modal
+
+4.2 Add/Create Listing Modal
+
+Triggered by:
+
+Clicking + Add Listing, OR
+
+When a FAQ is detected but no listing exists.
+
+Modal fields:
+
+Title (string)
+Address (string)
+Price Guide (string)
+Inspection Times (text)
+Info Pack URL (optional)
+Contract URL (optional)
+Floorplan URL (optional)
+
+
+Buttons: [Save & Link] [Cancel]
+
+After saving:
+
+Create Listing
+
+Link to conversation (ConversationListing)
+
+Set as active (primaryListingId)
+
+4.3 Quick Reply Buttons (Property-Aware)
+
+When user clicks a quick reply (Price / Inspection / Info Pack):
+
+It must use the active listing fields
+
+Example:
+
+Price button →
+
+“The price guide for {{listing.title}} is {{listing.priceGuide}}.”
+
+Inspection button →
+
+“Our next inspections for {{listing.title}}: {{listing.inspectionTimes}}.”
+
+Info Pack →
+
+“Here’s the full info pack for {{listing.title}}: {{listing.infoPackUrl}}.”
+
+4.4 FAQ Detection + Property Disambiguation
+
+When buyer message contains a recognized keyword (price, inspection, strata, info, contract):
+
+If conversation has 0 listings
+
+Show banner:
+
+“Quick replies available — link a property first.”
+[Create Listing]
+
+If conversation has 1 listing
+
+Automatically use that listing (no confirmation needed)
+
+If conversation has 2+ listings
+
+Show disambiguation:
+
+“Which property is this about?”
+[12 Example St] [5 King Rd]
+
+Clicking one:
+
+Sets that listing as active
+
+Loads matching quick replies
+
+4.5 Active Listing Indicator
+
+Quick reply bar shows:
+
+Quick Replies (Active: 12 Example St)
+[Price Guide] [Inspection Times] [Info Pack]
+
+So agent always knows which property the response refers to.
+
+-------------------------------------------------------
+5. Frontend Component Requirements
+-------------------------------------------------------
+5.1 <ListingChipsBar />
+
+Props:
+
+listings: Listing[]
+
+primaryListingId
+
+onSelectListing(listingId)
+
+onAddListing()
+
+5.2 <CreateListingModal />
+
+Props:
+
+onSubmit(listingData)
+
+onCancel()
+
+5.3 <QuickReplyBar />
+
+Props:
+
+activeListing: Listing | null
+
+faqType: "price" | "inspection" | "info" | null
+
+onSend(message)
+
+5.4 <ListingSelectPopover /> (for disambiguation)
+
+Shown when multiple listings exist and FAQ is detected.
+
+-------------------------------------------------------
+6. Business Logic Rules
+-------------------------------------------------------
+6.1 Selecting a listing updates usage
+
+Whenever agent selects a listing chip:
+
+Update Conversation.primaryListingId
+
+Update ConversationListing.lastUsedAt
+
+6.2 Quick Replies require an active listing
+
+If no active listing:
+
+Block quick replies
+
+Show modal prompting to create/select one
+
+6.3 Listing-aware messages must NEVER be sent for the wrong property
+
+If multiple listings exist and no active listing is set:
+
+Always force selection
+
+-------------------------------------------------------
+7. Non-Goals (Not in this feature)
+-------------------------------------------------------
+
+No full listing management page
+
+No MLS/REA scraping
+
+No list of all listings across agents
+
+No auto-listing detection
+
+No message-level listing tagging (future)
+
+-------------------------------------------------------
+8. Acceptance Criteria
+-------------------------------------------------------
+
+A Replit agent should consider this done if:
+
+8.1 Data
+
+✔ Listings can be created
+✔ Listings can be attached to a conversation
+✔ Multiple listings can be attached
+✔ One listing is primary
+
+8.2 UI
+
+✔ Chips display all attached listings
+✔ Chips switch the active listing
+✔ Quick replies pull correct property data
+✔ Disambiguation appears for multiple listings
+✔ “Create Listing” modal works end-to-end
+
+8.3 Behaviour
+
+✔ Quick replies never send wrong listing info
+✔ FAQ triggers correct listing selection flow
+✔ Adding a listing is frictionless and inside the conversation

@@ -87,18 +87,29 @@ export const followUpLogs = pgTable("follow_up_logs", {
   sentAt: timestamp("sent_at"),
 });
 
+// Junction table for multiple listings per conversation
+export const conversationListings = pgTable("conversation_listings", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull().references(() => conversations.id),
+  listingId: integer("listing_id").notNull().references(() => listings.id),
+  linkedAt: timestamp("linked_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
+});
+
 // Define relations
 export const listingsRelations = relations(listings, ({ many }) => ({
   conversations: many(conversations),
+  conversationListings: many(conversationListings),
 }));
 
 export const conversationsRelations = relations(conversations, ({ many, one }) => ({
   messages: many(messages),
-  listing: one(listings, {
+  primaryListing: one(listings, {
     fields: [conversations.listingId],
     references: [listings.id],
   }),
   followUpLogs: many(followUpLogs),
+  conversationListings: many(conversationListings),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -112,6 +123,17 @@ export const followUpLogsRelations = relations(followUpLogs, ({ one }) => ({
   conversation: one(conversations, {
     fields: [followUpLogs.conversationId],
     references: [conversations.id],
+  }),
+}));
+
+export const conversationListingsRelations = relations(conversationListings, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [conversationListings.conversationId],
+    references: [conversations.id],
+  }),
+  listing: one(listings, {
+    fields: [conversationListings.listingId],
+    references: [listings.id],
   }),
 }));
 
@@ -136,6 +158,12 @@ export const insertFollowUpLogSchema = createInsertSchema(followUpLogs).omit({
   triggeredAt: true,
 });
 
+export const insertConversationListingSchema = createInsertSchema(conversationListings).omit({
+  id: true,
+  linkedAt: true,
+  lastUsedAt: true,
+});
+
 // Types
 export type Listing = typeof listings.$inferSelect;
 export type InsertListing = z.infer<typeof insertListingSchema>;
@@ -145,6 +173,8 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type FollowUpLog = typeof followUpLogs.$inferSelect;
 export type InsertFollowUpLog = z.infer<typeof insertFollowUpLogSchema>;
+export type ConversationListing = typeof conversationListings.$inferSelect;
+export type InsertConversationListing = z.infer<typeof insertConversationListingSchema>;
 
 // Buyer Profile Schema (for JSON field)
 export const buyerProfileSchema = z.object({
