@@ -9,6 +9,7 @@ import ChatInput from "@/components/ChatInput";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ConversationList from "@/components/ConversationList";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import ListingChipsBar from "@/components/ListingChipsBar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -129,15 +130,20 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (content: string, platform: string) => {
+  const handleSendMessage = (content: string, platform?: string) => {
     if (!selectedConversationId) return;
 
     sendMessageMutation.mutate({
       conversationId: selectedConversationId,
       content,
       role: "agent",
-      platform,
+      platform: platform || selectedConversation?.platform || "messenger",
     });
+  };
+
+  // Wrapper for AnalysisPanel that uses conversation's platform
+  const handleSendFromPanel = (message: string) => {
+    handleSendMessage(message);
   };
 
   const handleAnalyze = async () => {
@@ -272,6 +278,11 @@ export default function Chat() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
+          {/* Listing Chips Bar - Multi-listing support */}
+          {selectedConversation && (
+            <ListingChipsBar conversationId={selectedConversation.id} />
+          )}
+          
           <ScrollArea className="flex-1">
             <div className="max-w-4xl mx-auto p-4 md:p-6">
               {!selectedConversation ? (
@@ -325,7 +336,7 @@ export default function Chat() {
             analysis={analysis}
             conversation={selectedConversation}
             onClose={() => setIsAnalysisPanelOpen(false)}
-            onSendMessage={handleSendMessage}
+            onSendMessage={handleSendFromPanel}
           />
         </div>
       </div>
