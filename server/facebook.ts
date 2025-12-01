@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { storage } from "./storage";
 import type { InsertConversation, InsertMessage } from "@shared/schema";
 
@@ -264,7 +265,6 @@ export function verifyWebhookSignature(payload: string, signature: string | unde
   }
   
   try {
-    const crypto = require('crypto');
     const appSecret = process.env.FACEBOOK_APP_SECRET;
     
     if (!appSecret) {
