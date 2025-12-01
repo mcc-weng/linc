@@ -91,9 +91,9 @@ export default function PropertyCarousel({
   return (
     <div className="space-y-3">
       {reasoning && (
-        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
+        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10 max-w-full">
           <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
-          <p className="text-xs text-muted-foreground leading-relaxed">{reasoning}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed break-words">{reasoning}</p>
         </div>
       )}
       
