@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import type { Message, LeadAnalysisResponse, Conversation, AISummary, FollowUpSuggestion } from "@shared/schema";
-import { leadAnalysisResponseSchema, aiSummarySchema, followUpSuggestionSchema } from "@shared/schema";
+import type { Message, LeadAnalysisResponse, Conversation, AISummary, FollowUpSuggestion, Listing, PropertyRecommendation } from "@shared/schema";
+import { leadAnalysisResponseSchema, aiSummarySchema, followUpSuggestionSchema, propertyRecommendationSchema } from "@shared/schema";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -162,6 +162,92 @@ ${conversationText}
   } catch (error) {
     console.error("OpenAI summary error:", error);
     throw new Error("AI 摘要服務暫時無法使用，請稍後再試");
+  }
+}
+
+// Generate property recommendations based on buyer conversation
+export async function generatePropertyRecommendations(
+  messages: Message[], 
+  availableListings: Listing[]
+): Promise<PropertyRecommendation> {
+  const conversationText = messages
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
+    .join("\n");
+
+  const listingsInfo = availableListings.map(l => ({
+    id: l.id,
+    title: l.title,
+    address: l.address,
+    priceGuide: l.priceGuide,
+    bedrooms: l.bedrooms,
+    bathrooms: l.bathrooms,
+    propertyType: l.propertyType,
+  }));
+
+  const prompt = `請分析以下買家對話，並從可用物件列表中推薦1-3個最適合的物件：
+
+對話內容：
+${conversationText}
+
+可用物件列表：
+${JSON.stringify(listingsInfo, null, 2)}
+
+請提供以下資訊（必須以JSON格式回覆）：
+{
+  "recommendedListingIds": [推薦物件ID列表，最多3個，按優先順序排列],
+  "reasoning": "推薦這些物件的原因說明",
+  "buyerIntent": {
+    "budget": "預算範圍 或 null",
+    "location": "地點偏好 或 null",
+    "propertyType": "物業類型偏好 或 null",
+    "bedrooms": 房間數需求 或 null
+  }
+}
+
+**重要要求：**
+- recommendedListingIds 必須是物件列表中存在的ID
+- 如果買家需求不明確，推薦1-2個較通用的物件
+- 根據買家預算、地點偏好、房型需求來匹配
+- 所有文字內容必須使用繁體中文`;
+
+  try {
+    const completion = await openai.chat.completions.parse({
+      model: "gpt-4o-2024-08-06",
+      messages: [
+        { role: "system", content: "你是一位專業的房地產經紀人助理，負責根據買家需求推薦合適的物件。" },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.5,
+      response_format: zodResponseFormat(propertyRecommendationSchema, "property_recommendation"),
+    });
+
+    const parsed = completion.choices[0].message.parsed;
+    
+    if (!parsed) {
+      throw new Error("AI 物件推薦生成失敗");
+    }
+
+    // Filter to only include valid listing IDs
+    const validIds = availableListings.map(l => l.id);
+    parsed.recommendedListingIds = parsed.recommendedListingIds.filter(id => validIds.includes(id));
+    
+    // Ensure at least one recommendation if listings exist
+    if (parsed.recommendedListingIds.length === 0 && availableListings.length > 0) {
+      parsed.recommendedListingIds = [availableListings[0].id];
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("OpenAI recommendation error:", error);
+    // Fallback: return first listing if available
+    if (availableListings.length > 0) {
+      return {
+        recommendedListingIds: [availableListings[0].id],
+        reasoning: "無法分析買家需求，顯示預設物件",
+        buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
+      };
+    }
+    throw new Error("AI 物件推薦服務暫時無法使用");
   }
 }
 

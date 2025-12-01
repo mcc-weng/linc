@@ -233,6 +233,20 @@ export const followUpSuggestionSchema = z.object({
 
 export type FollowUpSuggestion = z.infer<typeof followUpSuggestionSchema>;
 
+// Property recommendation schema (AI-based)
+export const propertyRecommendationSchema = z.object({
+  recommendedListingIds: z.array(z.number()).min(1).max(3),
+  reasoning: z.string(),
+  buyerIntent: z.object({
+    budget: z.string().nullable(),
+    location: z.string().nullable(),
+    propertyType: z.string().nullable(),
+    bedrooms: z.number().nullable(),
+  }),
+});
+
+export type PropertyRecommendation = z.infer<typeof propertyRecommendationSchema>;
+
 // Dashboard data schemas
 export const dashboardConversationSchema = z.object({
   id: z.number(),

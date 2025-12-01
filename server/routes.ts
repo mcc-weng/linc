@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { analyzeConversation, generateFollowUpSuggestions, generateAISummary } from "./openai";
+import { analyzeConversation, generateFollowUpSuggestions, generateAISummary, generatePropertyRecommendations } from "./openai";
 import { insertMessageSchema, leadAnalysisRequestSchema, insertListingSchema } from "@shared/schema";
 import { detectFAQKeywords, getQuickReplyTemplates, generateQuickReply } from "./faq";
 import { 
@@ -508,6 +508,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error toggling auto-follow-up:", error);
       res.status(500).json({ error: "Failed to toggle auto-follow-up" });
+    }
+  });
+
+  // ==========================================
+  // Property Recommendation Endpoint
+  // ==========================================
+
+  // Get AI-powered property recommendations for a conversation
+  app.post("/api/conversations/:id/recommendations", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const messages = await storage.getMessages(id);
+      if (messages.length === 0) {
+        return res.status(400).json({ error: "對話沒有訊息" });
+      }
+
+      // Get all available listings
+      const allListings = await storage.getListings();
+      if (allListings.length === 0) {
+        return res.json({
+          recommendedListingIds: [],
+          recommendedListings: [],
+          reasoning: "目前沒有可用物件",
+          buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
+        });
+      }
+
+      // Get last 10 messages for context
+      const recentMessages = messages.slice(-10);
+      const recommendations = await generatePropertyRecommendations(recentMessages, allListings);
+
+      // Get full listing details for recommended IDs
+      const recommendedListings = allListings.filter(
+        l => recommendations.recommendedListingIds.includes(l.id)
+      );
+
+      res.json({
+        ...recommendations,
+        recommendedListings,
+      });
+    } catch (error) {
+      console.error("Error generating property recommendations:", error);
+      const errorMessage = error instanceof Error ? error.message : "無法生成物件推薦";
+      res.status(500).json({ error: errorMessage });
     }
   });
 
