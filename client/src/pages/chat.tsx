@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff } from "lucide-react";
+import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -44,16 +44,39 @@ export default function Chat() {
         ? fetch(`/api/conversations/${selectedConversationId}/messages`).then(r => r.json())
         : Promise.resolve([]),
     enabled: !!selectedConversationId,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds to get new messages
   });
 
+  // Sync Facebook conversations
+  const syncFacebookMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/facebook/sync", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      toast({
+        title: "同步完成",
+        description: "已從 Facebook 同步對話",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "同步失敗",
+        description: error.message || "無法同步 Facebook 對話",
+      });
+    },
+  });
+
+  // Send message - server automatically forwards to Facebook for Messenger conversations
   const sendMessageMutation = useMutation({
-    mutationFn: (data: { conversationId: number; content: string; role: string; platform?: string }) =>
-      apiRequest("POST", `/api/conversations/${data.conversationId}/messages`, {
+    mutationFn: async (data: { conversationId: number; content: string; role: string; platform?: string }) => {
+      // Save message - server will auto-send to Facebook if it's a Messenger conversation
+      await apiRequest("POST", `/api/conversations/${data.conversationId}/messages`, {
         content: data.content,
         role: data.role,
         conversationId: data.conversationId,
         platform: data.platform,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", selectedConversationId, "messages"] });
@@ -128,7 +151,7 @@ export default function Chat() {
     return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const isLoading = analyzeMutation.isPending || sendMessageMutation.isPending;
+  const isLoading = analyzeMutation.isPending || sendMessageMutation.isPending || syncFacebookMutation.isPending;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -155,6 +178,20 @@ export default function Chat() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Sync Facebook Button */}
+          {facebookStatus?.configured && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => syncFacebookMutation.mutate()}
+              disabled={syncFacebookMutation.isPending}
+              data-testid="button-sync-facebook"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${syncFacebookMutation.isPending ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">同步 Facebook</span>
+            </Button>
+          )}
+          
           {/* Facebook Status Indicator */}
           <Badge 
             variant={facebookStatus?.configured ? "default" : "secondary"}
