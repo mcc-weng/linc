@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Plus,
   Sparkles,
+  ListFilter, // Added for the new select listing button
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -32,6 +33,7 @@ import { useLanguage } from "@/lib/LanguageContext";
 import { getTranslation, translations } from "@/lib/language";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import CreateListingModal from "@/components/CreateListingModal";
+import ListingSelectPopover from "@/components/ListingSelectPopover"; // Import the new component
 import type { LeadAnalysisResponse, AISummary, Conversation, Listing, FAQCategory, PropertyRecommendation } from "@shared/schema";
 
 interface FollowUpStatus {
@@ -85,7 +87,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   const [dragStart, setDragStart] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null);
+  const [isSelectListingModalOpen, setIsSelectListingModalOpen] = useState(false); // State for the new modal
+  const [carouselListings, setCarouselListings] = useState<Listing[]>([]);
+  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null); // Updated type
   const lastFetchedConversationId = useRef<number | null>(null);
   const hasListingsLoaded = useRef(false);
 
@@ -208,11 +212,24 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
 
   // Manually trigger refresh of recommendations (with debounce protection)
   const handleRefreshRecommendations = () => {
-    if (conversation?.id && !recommendationsMutation.isPending) {
-      lastFetchedConversationId.current = conversation.id; // Update ref to prevent auto-fetch from re-triggering
-      setRecommendations(null);
-      recommendationsMutation.mutate(conversation.id);
-    }
+    if (!conversation?.id) return;
+    recommendationsMutation.mutate(conversation.id);
+  };
+
+  const handleManualListingSelect = (listing: Listing) => {
+    // Add the selected listing to the carousel if not already there
+    setCarouselListings((prev) => {
+      const exists = prev.some(l => l.id === listing.id);
+      if (exists) {
+        toast({
+          title: language === "zh" ? "物件已存在" : "Listing Already Added",
+          description: language === "zh" ? "此物件已在推薦列表中" : "This listing is already in the recommendations",
+        });
+        return prev;
+      }
+      return [...prev, listing];
+    });
+    setIsSelectListingModalOpen(false);
   };
 
   // Toggle auto follow-up
@@ -298,6 +315,15 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           >
             <Plus className="w-4 h-4 mr-1" />
             {t("add_listing")}
+          </Button>
+          <Button
+            variant="outline" // Changed to outline for better visibility
+            size="sm"
+            onClick={() => setIsSelectListingModalOpen(true)} // Open the new modal
+            data-testid="button-select-listing"
+          >
+            <ListFilter className="w-4 h-4 mr-1" />
+            {t("select_listing")}
           </Button>
           <Button
             variant="ghost"
@@ -576,6 +602,16 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         onOpenChange={setShowCreateModal}
         conversationId={conversation?.id}
         onListingCreated={handleListingCreated}
+      />
+
+      {/* Listing Select Modal */}
+      <ListingSelectPopover
+        open={isSelectListingModalOpen}
+        onOpenChange={setIsSelectListingModalOpen}
+        listings={allListings || []}
+        primaryListingId={null}
+        onSelect={handleManualListingSelect}
+        title={language === "zh" ? "選擇推薦物件" : "Select Listing to Recommend"}
       />
     </div>
   );
