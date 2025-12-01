@@ -97,9 +97,9 @@ export default function PropertyCarousel({
         </div>
       )}
       
-      <div className="w-full">
+      <div className="w-full overflow-hidden">
         <ScrollArea className="w-full whitespace-nowrap rounded-md">
-          <div className="flex gap-3 pb-4 w-max cursor-grab active:cursor-grabbing">
+          <div className="flex gap-3 pb-4 cursor-grab active:cursor-grabbing select-none">
             {listings.map((listing) => (
             <Card 
               key={listing.id} 
