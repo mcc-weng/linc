@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Sparkles } from "lucide-react";
 import type { LeadAnalysisResponse } from "@shared/schema";
 
@@ -16,6 +15,29 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMessages = false, analysis }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!carouselRef.current) return;
+    setIsDragging(true);
+    setDragStart(e.pageX - carouselRef.current.offsetLeft);
+    setScrollLeft(carouselRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !carouselRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - carouselRef.current.offsetLeft;
+    const walk = (x - dragStart) * 1;
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,23 +77,29 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
           {/* Reply Suggestions Carousel */}
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground">建議回覆</span>
-            <ScrollArea className="w-full whitespace-nowrap">
-              <div className="flex gap-3 pb-2" data-testid="carousel-replies">
-                {analysis.replies.map((reply, index) => (
-                  <Card
-                    key={index}
-                    className="flex-shrink-0 w-[320px] cursor-pointer hover-elevate active-elevate-2"
-                    onClick={() => handleSelectReply(reply)}
-                    data-testid={`card-reply-${index + 1}`}
-                  >
-                    <CardContent className="p-3 space-y-1">
-                      <div className="text-xs font-medium text-muted-foreground">選項 {index + 1}</div>
-                      <p className="text-sm line-clamp-3 leading-relaxed">{reply}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
+            <div 
+              ref={carouselRef}
+              className="flex gap-3 pb-2 overflow-x-auto cursor-grab active:cursor-grabbing"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              data-testid="carousel-replies"
+            >
+              {analysis.replies.map((reply, index) => (
+                <Card
+                  key={index}
+                  className="flex-shrink-0 w-[320px] cursor-pointer hover-elevate active-elevate-2 select-none"
+                  onClick={() => handleSelectReply(reply)}
+                  data-testid={`card-reply-${index + 1}`}
+                >
+                  <CardContent className="p-3 space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">選項 {index + 1}</div>
+                    <p className="text-sm line-clamp-3 leading-relaxed">{reply}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       )}
