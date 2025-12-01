@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff, RefreshCw, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
 import AnalysisPanel from "@/components/AnalysisPanel";
@@ -44,7 +45,7 @@ export default function Chat() {
         ? fetch(`/api/conversations/${selectedConversationId}/messages`).then(r => r.json())
         : Promise.resolve([]),
     enabled: !!selectedConversationId,
-    refetchInterval: 5000, // Auto-refresh every 5 seconds to get new messages
+    refetchInterval: 5000,
   });
 
   // Sync Facebook conversations
@@ -69,7 +70,6 @@ export default function Chat() {
   // Send message - server automatically forwards to Facebook for Messenger conversations
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { conversationId: number; content: string; role: string; platform?: string }) => {
-      // Save message - server will auto-send to Facebook if it's a Messenger conversation
       await apiRequest("POST", `/api/conversations/${data.conversationId}/messages`, {
         content: data.content,
         role: data.role,
@@ -113,7 +113,7 @@ export default function Chat() {
     },
   });
 
-  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId) || null;
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -178,6 +178,14 @@ export default function Chat() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* Dashboard Link */}
+          <Link href="/dashboard">
+            <Button variant="outline" size="sm" data-testid="button-dashboard">
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">儀表板</span>
+            </Button>
+          </Link>
+
           {/* Sync Facebook Button */}
           {facebookStatus?.configured && (
             <Button
@@ -293,7 +301,9 @@ export default function Chat() {
         >
           <AnalysisPanel
             analysis={analysis}
+            conversation={selectedConversation}
             onClose={() => setIsAnalysisPanelOpen(false)}
+            onSendMessage={handleSendMessage}
           />
         </div>
       </div>

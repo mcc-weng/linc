@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { analyzeConversation } from "./openai";
-import { insertMessageSchema, leadAnalysisRequestSchema } from "@shared/schema";
+import { analyzeConversation, generateFollowUpSuggestions, generateAISummary } from "./openai";
+import { insertMessageSchema, leadAnalysisRequestSchema, insertListingSchema } from "@shared/schema";
+import { detectFAQKeywords, getQuickReplyTemplates, generateQuickReply } from "./faq";
 import { 
   getVerifyToken, 
   processWebhookMessage, 
@@ -171,8 +172,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Facebook integration status
+  app.get("/api/facebook/status", (req, res) => {
+    const hasPageToken = !!process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const hasVerifyToken = !!process.env.FACEBOOK_VERIFY_TOKEN;
+    const hasAppSecret = !!process.env.FACEBOOK_APP_SECRET;
+    
+    res.json({
+      configured: hasPageToken && hasVerifyToken && hasAppSecret,
+      pageTokenSet: hasPageToken,
+      verifyTokenSet: hasVerifyToken,
+      appSecretSet: hasAppSecret,
+      webhookUrl: `${req.protocol}://${req.get('host')}/webhook`,
+    });
+  });
+
   // ==========================================
-  // Existing API Endpoints
+  // Conversation Endpoints
   // ==========================================
 
   // Get all conversations
@@ -330,19 +346,358 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Facebook integration status
-  app.get("/api/facebook/status", (req, res) => {
-    const hasPageToken = !!process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-    const hasVerifyToken = !!process.env.FACEBOOK_VERIFY_TOKEN;
-    const hasAppSecret = !!process.env.FACEBOOK_APP_SECRET;
-    
-    res.json({
-      configured: hasPageToken && hasVerifyToken && hasAppSecret,
-      pageTokenSet: hasPageToken,
-      verifyTokenSet: hasVerifyToken,
-      appSecretSet: hasAppSecret,
-      webhookUrl: `${req.protocol}://${req.get('host')}/webhook`,
-    });
+  // ==========================================
+  // AI Summary Endpoint
+  // ==========================================
+
+  // Get AI summary for a conversation
+  app.get("/api/conversations/:id/summary", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      // Return existing summary if available
+      if (conversation.aiSummary) {
+        res.json(conversation.aiSummary);
+      } else {
+        res.json(null);
+      }
+    } catch (error) {
+      console.error("Error fetching AI summary:", error);
+      res.status(500).json({ error: "Failed to fetch AI summary" });
+    }
+  });
+
+  // Generate/refresh AI summary for a conversation
+  app.post("/api/conversations/:id/summary", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const messages = await storage.getMessages(id);
+      if (messages.length === 0) {
+        return res.status(400).json({ error: "對話沒有訊息可供分析" });
+      }
+
+      const summary = await generateAISummary(messages, conversation);
+      await storage.updateAISummary(id, summary);
+
+      res.json(summary);
+    } catch (error) {
+      console.error("Error generating AI summary:", error);
+      const errorMessage = error instanceof Error ? error.message : "AI 摘要生成失敗";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // ==========================================
+  // Follow-Up Endpoints
+  // ==========================================
+
+  // Get follow-up status and suggestions for a conversation
+  app.get("/api/conversations/:id/followup", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const messages = await storage.getMessages(id);
+      const logs = await storage.getFollowUpLogs(id);
+
+      // Calculate inactivity
+      const lastBuyerTime = conversation.lastBuyerMessageAt ? new Date(conversation.lastBuyerMessageAt).getTime() : 0;
+      const lastAgentTime = conversation.lastAgentMessageAt ? new Date(conversation.lastAgentMessageAt).getTime() : 0;
+      const now = Date.now();
+      const hoursInactive = lastBuyerTime > lastAgentTime 
+        ? Math.floor((now - lastBuyerTime) / 3600000) 
+        : 0;
+
+      res.json({
+        needsFollowUp: hoursInactive > 12 && lastBuyerTime > lastAgentTime,
+        hoursInactive,
+        autoFollowUpEnabled: conversation.autoFollowUpEnabled === 1,
+        followUpSentCount: conversation.followUpSentCount || 0,
+        lastAutoFollowUpAt: conversation.lastAutoFollowUpAt,
+        logs,
+      });
+    } catch (error) {
+      console.error("Error fetching follow-up status:", error);
+      res.status(500).json({ error: "Failed to fetch follow-up status" });
+    }
+  });
+
+  // Generate follow-up suggestions for a conversation
+  app.post("/api/conversations/:id/followup/suggestions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const messages = await storage.getMessages(id);
+      if (messages.length === 0) {
+        return res.status(400).json({ error: "對話沒有訊息" });
+      }
+
+      // Get last 5 messages for context
+      const recentMessages = messages.slice(-5);
+      const suggestions = await generateFollowUpSuggestions(recentMessages, conversation);
+
+      // Log the follow-up suggestion generation
+      await storage.logFollowUpAction({
+        conversationId: id,
+        actionType: "suggested",
+        message: suggestions.suggestions.join(" | "),
+      });
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Error generating follow-up suggestions:", error);
+      const errorMessage = error instanceof Error ? error.message : "無法生成追蹤建議";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  // Toggle auto-follow-up for a conversation
+  app.post("/api/conversations/:id/followup/toggle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+
+      const conversation = await storage.updateConversation(id, {
+        autoFollowUpEnabled: enabled ? 1 : 0,
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      res.json({ success: true, autoFollowUpEnabled: enabled });
+    } catch (error) {
+      console.error("Error toggling auto-follow-up:", error);
+      res.status(500).json({ error: "Failed to toggle auto-follow-up" });
+    }
+  });
+
+  // ==========================================
+  // FAQ & Quick Reply Endpoints
+  // ==========================================
+
+  // Detect FAQ keywords in a message
+  app.post("/api/faq/detect", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message) {
+        return res.status(400).json({ error: "message is required" });
+      }
+
+      const detected = detectFAQKeywords(message);
+      res.json(detected);
+    } catch (error) {
+      console.error("Error detecting FAQ keywords:", error);
+      res.status(500).json({ error: "Failed to detect FAQ keywords" });
+    }
+  });
+
+  // Get quick reply templates for a listing
+  app.get("/api/quick-replies", async (req, res) => {
+    try {
+      const listingId = req.query.listingId ? parseInt(req.query.listingId as string, 10) : undefined;
+      
+      let listing = undefined;
+      if (listingId) {
+        listing = await storage.getListing(listingId);
+      }
+
+      const templates = getQuickReplyTemplates(listing || undefined);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching quick reply templates:", error);
+      res.status(500).json({ error: "Failed to fetch quick reply templates" });
+    }
+  });
+
+  // Generate a quick reply message
+  app.post("/api/quick-replies/generate", async (req, res) => {
+    try {
+      const { category, listingId } = req.body;
+      if (!category) {
+        return res.status(400).json({ error: "category is required" });
+      }
+
+      let listing = undefined;
+      if (listingId) {
+        listing = await storage.getListing(listingId);
+      }
+
+      const message = generateQuickReply(category, listing || undefined);
+      res.json({ message });
+    } catch (error) {
+      console.error("Error generating quick reply:", error);
+      res.status(500).json({ error: "Failed to generate quick reply" });
+    }
+  });
+
+  // ==========================================
+  // Listing Endpoints
+  // ==========================================
+
+  // Get all listings
+  app.get("/api/listings", async (req, res) => {
+    try {
+      const listings = await storage.getListings();
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ error: "Failed to fetch listings" });
+    }
+  });
+
+  // Get a single listing
+  app.get("/api/listings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+      const listing = await storage.getListing(id);
+      if (!listing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      res.json(listing);
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ error: "Failed to fetch listing" });
+    }
+  });
+
+  // Create a new listing
+  app.post("/api/listings", async (req, res) => {
+    try {
+      const validation = insertListingSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          error: "Invalid listing data",
+          details: validation.error.errors,
+        });
+      }
+
+      const listing = await storage.createListing(validation.data);
+      res.status(201).json(listing);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+      res.status(500).json({ error: "Failed to create listing" });
+    }
+  });
+
+  // Update a listing
+  app.patch("/api/listings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const listing = await storage.updateListing(id, req.body);
+      if (!listing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      res.json(listing);
+    } catch (error) {
+      console.error("Error updating listing:", error);
+      res.status(500).json({ error: "Failed to update listing" });
+    }
+  });
+
+  // Delete a listing
+  app.delete("/api/listings/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const success = await storage.deleteListing(id);
+      if (!success) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      res.status(500).json({ error: "Failed to delete listing" });
+    }
+  });
+
+  // Associate a listing with a conversation
+  app.post("/api/conversations/:id/listing", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const { listingId } = req.body;
+      
+      const conversation = await storage.updateConversation(id, {
+        listingId: listingId || null,
+      });
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error associating listing:", error);
+      res.status(500).json({ error: "Failed to associate listing" });
+    }
+  });
+
+  // ==========================================
+  // Dashboard Endpoint
+  // ==========================================
+
+  // Get dashboard data
+  app.get("/api/dashboard", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      res.json(dashboardData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
   });
 
   const httpServer = createServer(app);

@@ -1,0 +1,420 @@
+🧩 PRODUCT REQUIREMENTS DOCUMENT (PRD)
+Product Name:
+
+Real Estate AI Ops – MVP (v0.1)
+
+Goal:
+
+Upgrade the existing Messenger AI reply webapp into a real estate–specific AI operations assistant that reduces agent admin time by 50% via:
+
+Auto-Follow-Up Engine
+
+Auto-Info Pack Quick Replies
+
+AI Conversation Summaries
+
+(Optional) Daily “Action Dashboard”
+
+The system must lean on the existing architecture wherever possible.
+
+-------------------------------------------------------
+1. SYSTEM OVERVIEW
+-------------------------------------------------------
+
+The existing app already supports:
+
+Facebook Messenger integration
+
+Conversation ingestion
+
+Context-based AI reply generation
+
+Sending suggested replies from UI
+
+This MVP expands the app into:
+
+A. Lead State Tracking
+
+Track last reply time
+
+Track lead status (Hot/Warm/Cold)
+
+Track unread/unreplied
+
+Track whether follow-up is needed
+
+B. Smart Reply Modules
+
+Auto-Follow-Up messages
+
+FAQ recognition → Quick reply buttons
+
+Listing-bound info packs
+
+C. Conversation Intelligence
+
+AI summary
+
+Extracted entities (budget, requirements, intent)
+
+D. Action Dashboard
+
+Which leads need attention RIGHT NOW
+
+Follow-up queue
+
+Hot leads
+
+Stalled threads
+
+-------------------------------------------------------
+2. USER ROLES
+-------------------------------------------------------
+Role: Real Estate Agent (Primary User)
+
+Capabilities:
+
+Connect Messenger
+
+View all conversations
+
+Send replies or auto-replies
+
+Configure listing info (price, address, strata, links)
+
+Turn on/off Auto-Follow-Up per conversation
+
+View AI summaries
+
+View action dashboard
+
+-------------------------------------------------------
+3. FEATURE REQUIREMENTS
+-------------------------------------------------------
+===========================
+Feature 1 — Auto-Follow-Up Engine
+===========================
+Purpose:
+
+Reduce lost leads by automatically surfacing or sending follow-up messages when buyer goes silent.
+
+Functional Requirements:
+1.1 Lead Inactivity Detection
+
+Track last inbound message timestamp
+
+Track last outbound message timestamp
+
+If no reply for X hours (default: 12h), mark conversation as Needs Follow-Up
+
+1.2 Auto-Suggestion UI
+
+When a thread is marked “Needs Follow-Up,” show a banner:
+“Buyer inactive for X hours — Suggest follow-up?”
+
+Display 3 AI-generated follow-up messages
+
+User can tap to send instantly
+
+1.3 Auto-Send Mode
+
+Toggle per conversation:
+[ ] Auto-send follow-ups if buyer doesn’t reply within X hours
+
+If ON → send one AI-generated follow-up
+
+Log the message in conversation
+
+1.4 Avoid Spam Logic
+
+Only 1 auto-follow-up per 48 hours
+
+Never auto-follow-up twice in a row
+
+If user manually replies, reset the timer
+
+Technical Requirements:
+
+Add last_agent_message_at and last_buyer_message_at fields
+
+Add needs_follow_up boolean
+
+Add auto_follow_up_enabled boolean
+
+Backend cron job (or event loop) checks inactivity every 5 min
+
+AI prompt for generating follow-ups uses last 5 messages context
+
+===========================
+Feature 2 — Auto-Info Pack Quick Replies
+===========================
+Purpose:
+
+Eliminate repetitive responses to common buyer questions.
+
+Functional Requirements:
+2.1 FAQ Detection
+
+When a buyer message contains keywords:
+
+Price-related
+
+“price”, “guide”, “how much”, “budget”
+
+Inspection-related
+
+“when inspect”, “inspection”, “open home”
+
+Property info
+
+“strata”, “fees”, “body corp”, “contract”, “address”
+
+“floorplan”, “photos”, “details”
+
+→ Trigger Quick Reply Buttons
+2.2 Listing Info Form
+
+User can enter core listing data:
+
+Price guide
+
+Address
+
+Inspection times
+
+Strata fee
+
+Contract link
+
+Info pack link
+
+Floorplan URL
+
+Agent name + mobile
+
+Stored per-listing with ID.
+
+2.3 Quick Reply Buttons in UI
+
+Buttons appear above your existing 3 reply suggestions.
+
+Example:
+[Price Guide] [Full Info Pack] [Inspection Times]
+
+Tapping sends a preformatted message with listing info.
+
+Technical Requirements:
+
+Add listing schema
+
+Associate conversations with listing
+
+FAQ keyword matcher
+
+Message-template generator
+
+Prebuilt templates for price, info pack, inspection, etc.
+
+===========================
+Feature 3 — AI Conversation Summary
+===========================
+Purpose:
+
+Instant context recall + mental load reduction for the agent.
+
+Functional Requirements:
+3.1 AI Summary Generation
+
+Every conversation gets a summary:
+
+Buyer name (if extractable)
+
+What they want (bed, location type)
+
+Budget
+
+Key questions asked
+
+Lead intent (hot/warm/cold using scoring)
+
+Action needed (follow-up? send doc?)
+
+3.2 Summary Panel UI
+
+Displayed on sidebar or top:
+
+Buyer Summary
+-------------
+Name: John
+Budget: $1.1m
+Asked for: strata, inspection time
+Lead Score: Hot
+Pending: Send contract
+Last Touch: 14 hours ago
+
+3.3 Lead Scoring
+
+Simple scoring rules:
+
+Replies fast = +1
+
+Asked for contract = +2
+
+Asked multiple questions = +1
+
+Attended inspection (entered manually later) = +3
+
+Technical Requirements:
+
+Add summary field for each thread
+
+Add lead_score
+
+Use prompt template: “Summarize conversation in structured JSON: {budget, intent, questions, next_steps, score}”
+
+Update summary every new message
+
+===========================
+Feature 4 — Daily “Action Dashboard”
+===========================
+
+(This is optional but extremely powerful)
+
+Purpose:
+
+Show agent exactly who they need to speak to.
+
+Functional Requirements:
+
+Dashboard Sections:
+
+A. Needs Follow-Up (inactive > 12h)
+B. Hot Leads
+C. Unread Messages
+D. Waiting For Documents (AI detects “send me”, “can I get”, etc.)
+E. Today’s Inspections (manual entry for now)
+
+Each row:
+
+Buyer name
+
+Summary snippet
+
+Last activity
+
+One-click “Send Follow-Up” button
+
+Technical Requirements:
+
+One API endpoint: /dashboard
+
+Query against conversation states
+
+Return JSON for the frontend to render
+
+-------------------------------------------------------
+4. UX REQUIREMENTS
+-------------------------------------------------------
+UI Style
+
+Keep current layout
+
+Add right sidebar for summary
+
+Add top banners for follow-up alerts
+
+Add floating quick-reply buttons
+
+Dashboard accessible from top nav
+
+Latency Targets
+
+AI summary: < 2.5 seconds
+
+Quick reply send: < 1 second
+
+Auto-follow-up cron tick: every 5 min
+
+-------------------------------------------------------
+5. NON-FUNCTIONAL
+-------------------------------------------------------
+
+Messenger API rate limits respected
+
+Auto-send logs stored
+
+All AI prompts protected from hallucination
+
+Conversations stored securely
+
+Audit logs for follow-ups
+
+-------------------------------------------------------
+6. DELIVERABLES
+-------------------------------------------------------
+Replit Deliverables
+
+Updated backend endpoints:
+
+/conversations/:id/summary
+
+/conversations/:id/followup
+
+/conversations/:id/keywords
+
+/listings
+
+/dashboard
+
+New database tables:
+
+listings
+
+conversation_meta (lead score, activity, auto-follow-up toggles)
+
+Updated frontend:
+
+Summary panel
+
+Follow-up banners
+
+FAQ quick reply buttons
+
+Dashboard page
+
+Cron process for auto-follow-up
+
+-------------------------------------------------------
+7. SUCCESS METRICS
+-------------------------------------------------------
+Primary
+
+Reduce manual replies by 40%+
+
+Reduce forgotten leads by 80%
+
+Secondary
+
+Daily dashboard usage: >70%
+
+Reply speed improvement: 2×
+
+-------------------------------------------------------
+8. V0.1 SCOPE CUTS (WHAT WE ARE NOT BUILDING YET)
+-------------------------------------------------------
+
+Vendor reports
+
+Inspection check-in automation
+
+Multi-platform integration (WhatsApp, IG, SMS)
+
+CRM export
+
+Auto-sending contracts/attachments
+
+Listing creation from URL
+
+Voice notes transcriptions
+
+All can be added later.

@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import type { Message, LeadAnalysisResponse } from "@shared/schema";
-import { leadAnalysisResponseSchema } from "@shared/schema";
+import { z } from "zod";
+import type { Message, LeadAnalysisResponse, Conversation, AISummary, FollowUpSuggestion } from "@shared/schema";
+import { leadAnalysisResponseSchema, aiSummarySchema, followUpSuggestionSchema } from "@shared/schema";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -104,5 +105,120 @@ ${conversationText}
     }
     
     throw new Error("AI 分析服務暫時無法使用，請稍後再試");
+  }
+}
+
+// Generate AI summary for a conversation
+export async function generateAISummary(messages: Message[], conversation: Conversation): Promise<AISummary> {
+  const conversationText = messages
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
+    .join("\n");
+
+  const lastBuyerTime = conversation.lastBuyerMessageAt 
+    ? new Date(conversation.lastBuyerMessageAt).getTime() 
+    : Date.now();
+  const hoursAgo = Math.floor((Date.now() - lastBuyerTime) / 3600000);
+
+  const prompt = `請分析以下對話，並生成結構化摘要：
+
+對話內容：
+${conversationText}
+
+請提供以下資訊（必須以JSON格式回覆）：
+{
+  "buyerName": "買家姓名（如果對話中有提到）或 null",
+  "budget": "預算範圍 或 null",
+  "requirements": "買家需求摘要（如：2房公寓、近學校、投資用途）或 null",
+  "questionsAsked": ["買家問過的問題列表"],
+  "leadIntent": "hot" | "warm" | "cold",
+  "pendingActions": ["待處理事項，如：發送合約、安排看房、報價"],
+  "lastTouchHoursAgo": ${hoursAgo},
+  "conversationSummary": "對話摘要（2-3句話）"
+}
+
+**重要要求：**
+- 所有文字內容必須使用繁體中文
+- 摘要要簡潔明瞭
+- 待處理事項要具體可執行`;
+
+  try {
+    const completion = await openai.chat.completions.parse({
+      model: "gpt-4o-2024-08-06",
+      messages: [
+        { role: "system", content: "你是一位專業的房地產經紀人助理，負責整理客戶對話摘要。" },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.5,
+      response_format: zodResponseFormat(aiSummarySchema, "ai_summary"),
+    });
+
+    const parsed = completion.choices[0].message.parsed;
+    
+    if (!parsed) {
+      throw new Error("AI 摘要生成失敗");
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("OpenAI summary error:", error);
+    throw new Error("AI 摘要服務暫時無法使用，請稍後再試");
+  }
+}
+
+// Generate follow-up suggestions for a conversation
+export async function generateFollowUpSuggestions(messages: Message[], conversation: Conversation): Promise<FollowUpSuggestion> {
+  const conversationText = messages
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
+    .join("\n");
+
+  const lastBuyerTime = conversation.lastBuyerMessageAt 
+    ? new Date(conversation.lastBuyerMessageAt).getTime() 
+    : Date.now();
+  const hoursInactive = Math.floor((Date.now() - lastBuyerTime) / 3600000);
+
+  const prompt = `這位買家已經 ${hoursInactive} 小時沒有回覆了。請根據最近對話內容，生成3個追蹤訊息建議：
+
+最近對話內容：
+${conversationText}
+
+請提供以下資訊（必須以JSON格式回覆）：
+{
+  "suggestions": [
+    "追蹤訊息1（策略：關心問候，重新引起興趣）",
+    "追蹤訊息2（策略：提供新資訊或價值）",
+    "追蹤訊息3（策略：創造急迫感，推動行動）"
+  ],
+  "urgencyLevel": "high" | "medium" | "low",
+  "reasonForFollowUp": "為什麼需要追蹤的原因說明"
+}
+
+**重要要求：**
+- 所有文字內容必須使用繁體中文
+- **suggestions 陣列必須包含恰好3個追蹤訊息**
+- 每個訊息應該自然、不過度推銷
+- 根據買家之前的需求和問題來客製化內容
+- 如果買家問過特定問題，可以主動提供答案`;
+
+  try {
+    const completion = await openai.chat.completions.parse({
+      model: "gpt-4o-2024-08-06",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
+      response_format: zodResponseFormat(followUpSuggestionSchema, "follow_up_suggestion"),
+    });
+
+    const parsed = completion.choices[0].message.parsed;
+    
+    if (!parsed) {
+      throw new Error("AI 追蹤建議生成失敗");
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error("OpenAI follow-up error:", error);
+    throw new Error("AI 追蹤服務暫時無法使用，請稍後再試");
   }
 }

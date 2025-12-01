@@ -3,12 +3,21 @@ import {
   type InsertConversation, 
   type Message, 
   type InsertMessage,
+  type Listing,
+  type InsertListing,
+  type FollowUpLog,
+  type InsertFollowUpLog,
+  type BuyerProfile,
+  type AISummary,
+  type DashboardData,
+  type DashboardConversation,
   conversations,
   messages,
-  type BuyerProfile
+  listings,
+  followUpLogs
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, lt, isNull, or } from "drizzle-orm";
 
 export interface IStorage {
   // Conversation methods
@@ -31,31 +40,93 @@ export interface IStorage {
     buyerProfile: BuyerProfile;
     replySuggestions: string[];
   }): Promise<Conversation | undefined>;
+
+  // Listing methods
+  getListings(): Promise<Listing[]>;
+  getListing(id: number): Promise<Listing | undefined>;
+  createListing(listing: InsertListing): Promise<Listing>;
+  updateListing(id: number, updates: Partial<Listing>): Promise<Listing | undefined>;
+  deleteListing(id: number): Promise<boolean>;
+
+  // Follow-up methods
+  getConversationsNeedingFollowUp(hoursThreshold: number): Promise<Conversation[]>;
+  updateFollowUpStatus(conversationId: number, needsFollowUp: boolean): Promise<void>;
+  logFollowUpAction(log: InsertFollowUpLog): Promise<FollowUpLog>;
+  getFollowUpLogs(conversationId: number): Promise<FollowUpLog[]>;
+
+  // AI Summary methods
+  updateAISummary(conversationId: number, summary: AISummary): Promise<Conversation | undefined>;
+
+  // Dashboard methods
+  getDashboardData(): Promise<{
+    needsFollowUp: Conversation[];
+    hotLeads: Conversation[];
+    unread: Conversation[];
+    stats: {
+      totalConversations: number;
+      hotLeadsCount: number;
+      warmLeadsCount: number;
+      coldLeadsCount: number;
+      avgResponseTimeHours: number;
+    };
+  }>;
 }
 
 // In-memory storage fallback (used when database is unavailable)
 export class MemStorage implements IStorage {
   private conversationsMap: Map<number, Conversation>;
   private messagesMap: Map<number, Message[]>;
+  private listingsMap: Map<number, Listing>;
+  private followUpLogsMap: Map<number, FollowUpLog[]>;
   private nextConversationId: number;
   private nextMessageId: number;
+  private nextListingId: number;
+  private nextFollowUpLogId: number;
 
   constructor() {
     this.conversationsMap = new Map();
     this.messagesMap = new Map();
+    this.listingsMap = new Map();
+    this.followUpLogsMap = new Map();
     this.nextConversationId = 1;
     this.nextMessageId = 1;
+    this.nextListingId = 1;
+    this.nextFollowUpLogId = 1;
     this.initializeMockData();
   }
 
   private initializeMockData() {
+    // Create a sample listing
+    const sampleListing: Listing = {
+      id: 1,
+      title: "Chatswood 精品公寓",
+      address: "123 Victoria Avenue, Chatswood NSW 2067",
+      priceGuide: "$1,200,000 - $1,350,000",
+      inspectionTimes: "週六 10:00-10:30, 週日 11:00-11:30",
+      strataFee: "$1,200/季",
+      contractLink: "https://example.com/contract",
+      infoPackLink: "https://example.com/infopack",
+      floorplanUrl: "https://example.com/floorplan",
+      agentName: "王經紀",
+      agentMobile: "0412 345 678",
+      bedrooms: 2,
+      bathrooms: 2,
+      parking: 1,
+      propertyType: "apartment",
+      isActive: 1,
+      createdAt: new Date(),
+    };
+    this.listingsMap.set(1, sampleListing);
+    this.nextListingId = 2;
+
     const now = new Date();
+    const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3600000);
     
     const conv1: Conversation = {
       id: 1,
       buyerName: "王小明",
       lastMessage: "我想找北雪梨區2-3房的公寓，預算120-150萬",
-      timestamp: new Date(Date.now() - 3600000),
+      timestamp: hoursAgo(2),
       platform: "Messenger",
       unreadCount: 2,
       leadScore: "hot",
@@ -67,13 +138,24 @@ export class MemStorage implements IStorage {
       followUpInDays: null,
       followUpMessage: null,
       replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(2),
+      lastAgentMessageAt: hoursAgo(3),
+      needsFollowUp: 0,
+      autoFollowUpEnabled: 0,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: 1,
+      needsAttention: 1,
+      waitingForDocuments: 0,
     };
 
     const conv2: Conversation = {
       id: 2,
       buyerName: "李美華",
       lastMessage: "請問Chatswood那邊有適合投資的物件嗎？",
-      timestamp: new Date(Date.now() - 7200000),
+      timestamp: hoursAgo(14),
       platform: "Messenger",
       unreadCount: 0,
       leadScore: "warm",
@@ -85,16 +167,27 @@ export class MemStorage implements IStorage {
       followUpInDays: null,
       followUpMessage: null,
       replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(14),
+      lastAgentMessageAt: hoursAgo(12),
+      needsFollowUp: 1,
+      autoFollowUpEnabled: 1,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: null,
+      needsAttention: 1,
+      waitingForDocuments: 0,
     };
 
     const conv3: Conversation = {
       id: 3,
       buyerName: "張大衛",
-      lastMessage: "先了解一下市場行情",
-      timestamp: new Date(Date.now() - 86400000),
+      lastMessage: "可以發合約給我看看嗎？",
+      timestamp: hoursAgo(24),
       platform: "Messenger",
       unreadCount: 0,
-      leadScore: "cold",
+      leadScore: "warm",
       facebookPsid: null,
       facebookPageId: null,
       profilePictureUrl: null,
@@ -103,6 +196,17 @@ export class MemStorage implements IStorage {
       followUpInDays: null,
       followUpMessage: null,
       replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(24),
+      lastAgentMessageAt: hoursAgo(20),
+      needsFollowUp: 0,
+      autoFollowUpEnabled: 0,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: 1,
+      needsAttention: 0,
+      waitingForDocuments: 1,
     };
 
     this.conversationsMap.set(1, conv1);
@@ -116,30 +220,33 @@ export class MemStorage implements IStorage {
         conversationId: 1,
         content: "你好！我想在北雪梨區找房子",
         role: "buyer",
-        timestamp: new Date(Date.now() - 3600000 - 1800000),
+        timestamp: hoursAgo(4),
         platform: "Messenger",
         facebookMessageId: null,
         isRead: 1,
+        isAutoFollowUp: 0,
       },
       {
         id: 2,
         conversationId: 1,
         content: "您好！很高興為您服務。請問您的預算大概是多少？需要幾房幾衛？",
         role: "agent",
-        timestamp: new Date(Date.now() - 3600000 - 1500000),
+        timestamp: hoursAgo(3),
         platform: null,
         facebookMessageId: null,
         isRead: 1,
+        isAutoFollowUp: 0,
       },
       {
         id: 3,
         conversationId: 1,
         content: "我想找2-3房的公寓，預算120-150萬左右",
         role: "buyer",
-        timestamp: new Date(Date.now() - 3600000),
+        timestamp: hoursAgo(2),
         platform: "Messenger",
         facebookMessageId: null,
         isRead: 0,
+        isAutoFollowUp: 0,
       },
     ]);
 
@@ -149,20 +256,22 @@ export class MemStorage implements IStorage {
         conversationId: 2,
         content: "請問Chatswood那邊有適合投資的物件嗎？",
         role: "buyer",
-        timestamp: new Date(Date.now() - 7200000),
+        timestamp: hoursAgo(14),
         platform: "Messenger",
         facebookMessageId: null,
         isRead: 1,
+        isAutoFollowUp: 0,
       },
       {
         id: 5,
         conversationId: 2,
         content: "有的！Chatswood是很好的投資區域。請問您的預算範圍是？",
         role: "agent",
-        timestamp: new Date(Date.now() - 7000000),
+        timestamp: hoursAgo(12),
         platform: null,
         facebookMessageId: null,
         isRead: 1,
+        isAutoFollowUp: 0,
       },
     ]);
 
@@ -170,16 +279,39 @@ export class MemStorage implements IStorage {
       {
         id: 6,
         conversationId: 3,
-        content: "先了解一下市場行情",
+        content: "我對Victoria Avenue那間公寓有興趣",
         role: "buyer",
-        timestamp: new Date(Date.now() - 86400000),
+        timestamp: hoursAgo(26),
         platform: "Messenger",
         facebookMessageId: null,
         isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 7,
+        conversationId: 3,
+        content: "好的！那是一間很棒的物件，您想了解哪方面的資訊？",
+        role: "agent",
+        timestamp: hoursAgo(25),
+        platform: null,
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 8,
+        conversationId: 3,
+        content: "可以發合約給我看看嗎？",
+        role: "buyer",
+        timestamp: hoursAgo(24),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
       },
     ]);
 
-    this.nextMessageId = 7;
+    this.nextMessageId = 9;
   }
 
   async getConversations(): Promise<Conversation[]> {
@@ -214,6 +346,17 @@ export class MemStorage implements IStorage {
       followUpInDays: insertConversation.followUpInDays || null,
       followUpMessage: insertConversation.followUpMessage || null,
       replySuggestions: insertConversation.replySuggestions || null,
+      lastBuyerMessageAt: insertConversation.lastBuyerMessageAt || null,
+      lastAgentMessageAt: insertConversation.lastAgentMessageAt || null,
+      needsFollowUp: insertConversation.needsFollowUp || 0,
+      autoFollowUpEnabled: insertConversation.autoFollowUpEnabled || 0,
+      lastAutoFollowUpAt: insertConversation.lastAutoFollowUpAt || null,
+      followUpSentCount: insertConversation.followUpSentCount || 0,
+      aiSummary: insertConversation.aiSummary || null,
+      aiSummaryUpdatedAt: insertConversation.aiSummaryUpdatedAt || null,
+      listingId: insertConversation.listingId || null,
+      needsAttention: insertConversation.needsAttention || 0,
+      waitingForDocuments: insertConversation.waitingForDocuments || 0,
     };
     this.conversationsMap.set(id, conversation);
     this.messagesMap.set(id, []);
@@ -244,16 +387,27 @@ export class MemStorage implements IStorage {
       platform: insertMessage.platform || null,
       facebookMessageId: insertMessage.facebookMessageId || null,
       isRead: insertMessage.isRead || 0,
+      isAutoFollowUp: insertMessage.isAutoFollowUp || 0,
     };
 
     const messages = this.messagesMap.get(insertMessage.conversationId) || [];
     messages.push(message);
     this.messagesMap.set(insertMessage.conversationId, messages);
 
-    await this.updateConversation(insertMessage.conversationId, {
+    // Update conversation with last message and activity timestamps
+    const updates: Partial<Conversation> = {
       lastMessage: insertMessage.content,
       timestamp: message.timestamp,
-    });
+    };
+
+    if (insertMessage.role === "buyer") {
+      updates.lastBuyerMessageAt = message.timestamp;
+      updates.needsFollowUp = 0; // Reset follow-up flag when buyer responds
+    } else if (insertMessage.role === "agent") {
+      updates.lastAgentMessageAt = message.timestamp;
+    }
+
+    await this.updateConversation(insertMessage.conversationId, updates);
 
     return message;
   }
@@ -274,6 +428,169 @@ export class MemStorage implements IStorage {
       buyerProfile: analysis.buyerProfile,
       replySuggestions: analysis.replySuggestions,
     });
+  }
+
+  // Listing methods
+  async getListings(): Promise<Listing[]> {
+    return Array.from(this.listingsMap.values()).filter(l => l.isActive === 1);
+  }
+
+  async getListing(id: number): Promise<Listing | undefined> {
+    return this.listingsMap.get(id);
+  }
+
+  async createListing(insertListing: InsertListing): Promise<Listing> {
+    const id = this.nextListingId++;
+    const listing: Listing = {
+      id,
+      title: insertListing.title,
+      address: insertListing.address || null,
+      priceGuide: insertListing.priceGuide || null,
+      inspectionTimes: insertListing.inspectionTimes || null,
+      strataFee: insertListing.strataFee || null,
+      contractLink: insertListing.contractLink || null,
+      infoPackLink: insertListing.infoPackLink || null,
+      floorplanUrl: insertListing.floorplanUrl || null,
+      agentName: insertListing.agentName || null,
+      agentMobile: insertListing.agentMobile || null,
+      bedrooms: insertListing.bedrooms || null,
+      bathrooms: insertListing.bathrooms || null,
+      parking: insertListing.parking || null,
+      propertyType: insertListing.propertyType || null,
+      isActive: insertListing.isActive ?? 1,
+      createdAt: new Date(),
+    };
+    this.listingsMap.set(id, listing);
+    return listing;
+  }
+
+  async updateListing(id: number, updates: Partial<Listing>): Promise<Listing | undefined> {
+    const listing = this.listingsMap.get(id);
+    if (!listing) return undefined;
+    
+    const updated = { ...listing, ...updates };
+    this.listingsMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteListing(id: number): Promise<boolean> {
+    return this.listingsMap.delete(id);
+  }
+
+  // Follow-up methods
+  async getConversationsNeedingFollowUp(hoursThreshold: number): Promise<Conversation[]> {
+    const thresholdTime = new Date(Date.now() - hoursThreshold * 3600000);
+    
+    return Array.from(this.conversationsMap.values()).filter(conv => {
+      // Must have buyer message after last agent message
+      if (!conv.lastBuyerMessageAt) return false;
+      
+      const lastBuyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+      const lastAgentTime = conv.lastAgentMessageAt ? new Date(conv.lastAgentMessageAt).getTime() : 0;
+      
+      // Buyer messaged after agent's last message, and it's been longer than threshold
+      return lastBuyerTime > lastAgentTime && lastBuyerTime < thresholdTime.getTime();
+    });
+  }
+
+  async updateFollowUpStatus(conversationId: number, needsFollowUp: boolean): Promise<void> {
+    await this.updateConversation(conversationId, { needsFollowUp: needsFollowUp ? 1 : 0 });
+  }
+
+  async logFollowUpAction(log: InsertFollowUpLog): Promise<FollowUpLog> {
+    const id = this.nextFollowUpLogId++;
+    const followUpLog: FollowUpLog = {
+      id,
+      conversationId: log.conversationId,
+      actionType: log.actionType,
+      message: log.message || null,
+      triggeredAt: new Date(),
+      sentAt: log.sentAt || null,
+    };
+    
+    const logs = this.followUpLogsMap.get(log.conversationId) || [];
+    logs.push(followUpLog);
+    this.followUpLogsMap.set(log.conversationId, logs);
+    
+    return followUpLog;
+  }
+
+  async getFollowUpLogs(conversationId: number): Promise<FollowUpLog[]> {
+    return this.followUpLogsMap.get(conversationId) || [];
+  }
+
+  // AI Summary methods
+  async updateAISummary(conversationId: number, summary: AISummary): Promise<Conversation | undefined> {
+    return this.updateConversation(conversationId, {
+      aiSummary: summary,
+      aiSummaryUpdatedAt: new Date(),
+    });
+  }
+
+  // Dashboard methods - returns format expected by frontend
+  async getDashboardData(): Promise<{
+    needsFollowUp: Conversation[];
+    hotLeads: Conversation[];
+    unread: Conversation[];
+    stats: {
+      totalConversations: number;
+      hotLeadsCount: number;
+      warmLeadsCount: number;
+      coldLeadsCount: number;
+      avgResponseTimeHours: number;
+    };
+  }> {
+    const allConversations = Array.from(this.conversationsMap.values());
+    const now = Date.now();
+
+    // Conversations needing follow-up (inactive > 12 hours with no agent response)
+    const needsFollowUp = allConversations.filter(conv => {
+      if (!conv.lastBuyerMessageAt) return false;
+      const buyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+      const agentTime = conv.lastAgentMessageAt ? new Date(conv.lastAgentMessageAt).getTime() : 0;
+      const hoursInactive = (now - buyerTime) / 3600000;
+      return buyerTime > agentTime && hoursInactive > 12;
+    });
+
+    // Hot leads
+    const hotLeads = allConversations.filter(conv => conv.leadScore === "hot");
+    
+    // Warm leads
+    const warmLeads = allConversations.filter(conv => conv.leadScore === "warm");
+    
+    // Cold leads
+    const coldLeads = allConversations.filter(conv => conv.leadScore === "cold");
+
+    // Unread messages
+    const unread = allConversations.filter(conv => (conv.unreadCount || 0) > 0);
+
+    // Calculate average response time (hours between buyer message and agent response)
+    let totalResponseTime = 0;
+    let responseCount = 0;
+    for (const conv of allConversations) {
+      if (conv.lastBuyerMessageAt && conv.lastAgentMessageAt) {
+        const buyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+        const agentTime = new Date(conv.lastAgentMessageAt).getTime();
+        if (agentTime > buyerTime) {
+          totalResponseTime += (agentTime - buyerTime) / 3600000;
+          responseCount++;
+        }
+      }
+    }
+    const avgResponseTimeHours = responseCount > 0 ? totalResponseTime / responseCount : 0;
+
+    return {
+      needsFollowUp,
+      hotLeads,
+      unread,
+      stats: {
+        totalConversations: allConversations.length,
+        hotLeadsCount: hotLeads.length,
+        warmLeadsCount: warmLeads.length,
+        coldLeadsCount: coldLeads.length,
+        avgResponseTimeHours,
+      },
+    };
   }
 }
 
@@ -324,12 +641,22 @@ export class DatabaseStorage implements IStorage {
       .values(insertMessage)
       .returning();
 
+    // Update conversation with last message and activity timestamps
+    const updates: Partial<Conversation> = {
+      lastMessage: insertMessage.content,
+      timestamp: new Date(),
+    };
+
+    if (insertMessage.role === "buyer") {
+      updates.lastBuyerMessageAt = new Date();
+      updates.needsFollowUp = 0;
+    } else if (insertMessage.role === "agent") {
+      updates.lastAgentMessageAt = new Date();
+    }
+
     await db
       .update(conversations)
-      .set({ 
-        lastMessage: insertMessage.content,
-        timestamp: new Date(),
-      })
+      .set(updates)
       .where(eq(conversations.id, insertMessage.conversationId));
 
     return message;
@@ -357,8 +684,148 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return conversation || undefined;
   }
+
+  // Listing methods
+  async getListings(): Promise<Listing[]> {
+    return await db.select().from(listings).where(eq(listings.isActive, 1));
+  }
+
+  async getListing(id: number): Promise<Listing | undefined> {
+    const [listing] = await db.select().from(listings).where(eq(listings.id, id));
+    return listing || undefined;
+  }
+
+  async createListing(insertListing: InsertListing): Promise<Listing> {
+    const [listing] = await db.insert(listings).values(insertListing).returning();
+    return listing;
+  }
+
+  async updateListing(id: number, updates: Partial<Listing>): Promise<Listing | undefined> {
+    const [listing] = await db
+      .update(listings)
+      .set(updates)
+      .where(eq(listings.id, id))
+      .returning();
+    return listing || undefined;
+  }
+
+  async deleteListing(id: number): Promise<boolean> {
+    const result = await db.delete(listings).where(eq(listings.id, id));
+    return true;
+  }
+
+  // Follow-up methods
+  async getConversationsNeedingFollowUp(hoursThreshold: number): Promise<Conversation[]> {
+    const thresholdTime = new Date(Date.now() - hoursThreshold * 3600000);
+    // This is a simplified query - in production you'd want more complex SQL
+    const allConvs = await this.getConversations();
+    return allConvs.filter(conv => {
+      if (!conv.lastBuyerMessageAt) return false;
+      const buyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+      const agentTime = conv.lastAgentMessageAt ? new Date(conv.lastAgentMessageAt).getTime() : 0;
+      return buyerTime > agentTime && buyerTime < thresholdTime.getTime();
+    });
+  }
+
+  async updateFollowUpStatus(conversationId: number, needsFollowUp: boolean): Promise<void> {
+    await db
+      .update(conversations)
+      .set({ needsFollowUp: needsFollowUp ? 1 : 0 })
+      .where(eq(conversations.id, conversationId));
+  }
+
+  async logFollowUpAction(log: InsertFollowUpLog): Promise<FollowUpLog> {
+    const [followUpLog] = await db.insert(followUpLogs).values(log).returning();
+    return followUpLog;
+  }
+
+  async getFollowUpLogs(conversationId: number): Promise<FollowUpLog[]> {
+    return await db
+      .select()
+      .from(followUpLogs)
+      .where(eq(followUpLogs.conversationId, conversationId))
+      .orderBy(desc(followUpLogs.triggeredAt));
+  }
+
+  // AI Summary methods
+  async updateAISummary(conversationId: number, summary: AISummary): Promise<Conversation | undefined> {
+    const [conversation] = await db
+      .update(conversations)
+      .set({
+        aiSummary: summary,
+        aiSummaryUpdatedAt: new Date(),
+      })
+      .where(eq(conversations.id, conversationId))
+      .returning();
+    return conversation || undefined;
+  }
+
+  // Dashboard methods - returns format expected by frontend
+  async getDashboardData(): Promise<{
+    needsFollowUp: Conversation[];
+    hotLeads: Conversation[];
+    unread: Conversation[];
+    stats: {
+      totalConversations: number;
+      hotLeadsCount: number;
+      warmLeadsCount: number;
+      coldLeadsCount: number;
+      avgResponseTimeHours: number;
+    };
+  }> {
+    const allConversations = await this.getConversations();
+    const now = Date.now();
+
+    // Conversations needing follow-up (inactive > 12 hours with no agent response)
+    const needsFollowUp = allConversations.filter(conv => {
+      if (!conv.lastBuyerMessageAt) return false;
+      const buyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+      const agentTime = conv.lastAgentMessageAt ? new Date(conv.lastAgentMessageAt).getTime() : 0;
+      const hoursInactive = (now - buyerTime) / 3600000;
+      return buyerTime > agentTime && hoursInactive > 12;
+    });
+
+    // Hot leads
+    const hotLeads = allConversations.filter(conv => conv.leadScore === "hot");
+    
+    // Warm leads
+    const warmLeads = allConversations.filter(conv => conv.leadScore === "warm");
+    
+    // Cold leads
+    const coldLeads = allConversations.filter(conv => conv.leadScore === "cold");
+
+    // Unread messages
+    const unread = allConversations.filter(conv => (conv.unreadCount || 0) > 0);
+
+    // Calculate average response time
+    let totalResponseTime = 0;
+    let responseCount = 0;
+    for (const conv of allConversations) {
+      if (conv.lastBuyerMessageAt && conv.lastAgentMessageAt) {
+        const buyerTime = new Date(conv.lastBuyerMessageAt).getTime();
+        const agentTime = new Date(conv.lastAgentMessageAt).getTime();
+        if (agentTime > buyerTime) {
+          totalResponseTime += (agentTime - buyerTime) / 3600000;
+          responseCount++;
+        }
+      }
+    }
+    const avgResponseTimeHours = responseCount > 0 ? totalResponseTime / responseCount : 0;
+
+    return {
+      needsFollowUp,
+      hotLeads,
+      unread,
+      stats: {
+        totalConversations: allConversations.length,
+        hotLeadsCount: hotLeads.length,
+        warmLeadsCount: warmLeads.length,
+        coldLeadsCount: coldLeads.length,
+        avgResponseTimeHours,
+      },
+    };
+  }
 }
 
 // Use in-memory storage for now (switch to DatabaseStorage when DB is available)
-// To use database: export const storage = new DatabaseStorage();
 export const storage = new MemStorage();
