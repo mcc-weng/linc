@@ -110,8 +110,8 @@ export class MemStorage implements IStorage {
   }
 
   private initializeMockData() {
-    // Create a sample listing
-    const sampleListing: Listing = {
+    // Create sample listings
+    const sampleListing1: Listing = {
       id: 1,
       title: "Chatswood 精品公寓",
       address: "123 Victoria Avenue, Chatswood NSW 2067",
@@ -129,9 +129,58 @@ export class MemStorage implements IStorage {
       propertyType: "apartment",
       isActive: 1,
       createdAt: new Date(),
+      inspectionAvailableDate: "2025-12-07",
+      inspectionAvailableTime: "10:00-12:00, 14:00-16:00",
     };
-    this.listingsMap.set(1, sampleListing);
-    this.nextListingId = 2;
+    this.listingsMap.set(1, sampleListing1);
+
+    const sampleListing2: Listing = {
+      id: 2,
+      title: "North Sydney 海景豪宅",
+      address: "88 Berry Street, North Sydney NSW 2060",
+      priceGuide: "$2,500,000 - $2,800,000",
+      inspectionTimes: "週六 11:00-11:30",
+      strataFee: "$2,500/季",
+      contractLink: "https://example.com/contract2",
+      infoPackLink: "https://example.com/infopack2",
+      floorplanUrl: "https://example.com/floorplan2",
+      agentName: "王經紀",
+      agentMobile: "0412 345 678",
+      bedrooms: 3,
+      bathrooms: 2,
+      parking: 2,
+      propertyType: "apartment",
+      isActive: 1,
+      createdAt: new Date(),
+      inspectionAvailableDate: "2025-12-08",
+      inspectionAvailableTime: "09:00-11:00",
+    };
+    this.listingsMap.set(2, sampleListing2);
+
+    const sampleListing3: Listing = {
+      id: 3,
+      title: "Lane Cove 花園別墅",
+      address: "25 Longueville Road, Lane Cove NSW 2066",
+      priceGuide: "$1,800,000 - $2,000,000",
+      inspectionTimes: "週日 14:00-14:30",
+      strataFee: null,
+      contractLink: "https://example.com/contract3",
+      infoPackLink: null,
+      floorplanUrl: "https://example.com/floorplan3",
+      agentName: "王經紀",
+      agentMobile: "0412 345 678",
+      bedrooms: 4,
+      bathrooms: 3,
+      parking: 2,
+      propertyType: "house",
+      isActive: 1,
+      createdAt: new Date(),
+      inspectionAvailableDate: "2025-12-14",
+      inspectionAvailableTime: "13:00-17:00",
+    };
+    this.listingsMap.set(3, sampleListing3);
+
+    this.nextListingId = 4;
 
     const now = new Date();
     const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3600000);
@@ -473,6 +522,8 @@ export class MemStorage implements IStorage {
       propertyType: insertListing.propertyType || null,
       isActive: insertListing.isActive ?? 1,
       createdAt: new Date(),
+      inspectionAvailableDate: insertListing.inspectionAvailableDate || null,
+      inspectionAvailableTime: insertListing.inspectionAvailableTime || null,
     };
     this.listingsMap.set(id, listing);
     return listing;

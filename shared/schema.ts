@@ -24,6 +24,9 @@ export const listings = pgTable("listings", {
   propertyType: varchar("property_type", { length: 50 }),
   isActive: integer("is_active").default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // NEW: Available inspection scheduling fields
+  inspectionAvailableDate: text("inspection_available_date"),
+  inspectionAvailableTime: text("inspection_available_time"),
 });
 
 // Conversations table - stores chat threads from Facebook Messenger
