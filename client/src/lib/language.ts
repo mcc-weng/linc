@@ -8,18 +8,18 @@ export const translations = {
     "sync_facebook": "同步 Facebook",
     "facebook_connected": "Facebook 已連接",
     "facebook_not_connected": "Facebook 未連接",
-    
+
     // Chat
     "select_conversation": "選擇對話",
     "select_from_left": "從左側選擇一個買家對話開始",
     "enter_message": "輸入買家訊息... (Enter 送出，Shift+Enter 換行)",
     "analyze": "分析對話",
-    
+
     // Input
     "ai_analysis_summary": "AI 分析摘要",
     "suggested_replies": "建議回覆",
     "option": "選項",
-    
+
     // Analysis Panel
     "ai_assistant_panel": "AI 助理",
     "needs_followup": "需要追蹤",
@@ -43,14 +43,14 @@ export const translations = {
     "timeline": "時間表",
     "auto_followup": "自動追蹤",
     "auto_followup_desc": "12小時未回覆自動發送追蹤",
-    
+
     // Quick Reply Categories
     "quick_reply_price": "價格查詢",
     "quick_reply_inspection": "檢驗安排",
     "quick_reply_property_info": "物業資訊",
     "quick_reply_contract": "合約詢問",
     "quick_reply_general": "一般回覆",
-    
+
     // Toasts
     "sync_complete": "同步完成",
     "sync_complete_desc": "已從 Facebook 同步對話",
@@ -63,7 +63,7 @@ export const translations = {
     "hot_lead": "熱客戶",
     "warm_lead": "溫客戶",
     "cold_lead": "冷客戶",
-    
+
     // Dashboard
     "action_dashboard": "行動儀表板",
     "needs_followup_tab": "需要追蹤",
@@ -77,7 +77,7 @@ export const translations = {
     "avg_response_time": "平均回應時間",
     "hours": "小時",
     "no_results": "沒有結果",
-    
+
     // Listings
     "listings": "物業清單",
     "add_listing": "新增物業",
@@ -88,6 +88,7 @@ export const translations = {
     "no_listings": "尚未關聯物業",
     "add_first_listing": "點擊新增物業",
     "select_listing": "選擇物業",
+    "suggest_property": "建議物業",
     "create_new_listing": "建立新物業",
     "listing_title": "物業標題",
     "listing_address": "地址",
@@ -101,7 +102,7 @@ export const translations = {
     "select_property": "選擇物業以生成回覆",
     "multiple_listings": "多個物業",
     "which_property": "此對話關聯多個物業，請選擇要使用的物業：",
-    
+
     // Property Carousel
     "recommended_properties": "推薦物業",
     "ai_recommends": "AI 推薦",
@@ -115,7 +116,7 @@ export const translations = {
     "view_contract": "查看合約",
     "available_inspection": "可預約時間",
     "property_details": "物業詳情",
-    
+
     // Property Modal Fields
     "contract_link": "合約連結",
     "contract_link_placeholder": "https://example.com/contract.pdf",
@@ -137,18 +138,18 @@ export const translations = {
     "sync_facebook": "Sync Facebook",
     "facebook_connected": "Facebook Connected",
     "facebook_not_connected": "Facebook Not Connected",
-    
+
     // Chat
     "select_conversation": "Select Conversation",
     "select_from_left": "Select a buyer conversation from the left to start",
     "enter_message": "Enter buyer message... (Enter to send, Shift+Enter for new line)",
     "analyze": "Analyze Conversation",
-    
+
     // Input
     "ai_analysis_summary": "AI Analysis Summary",
     "suggested_replies": "Suggested Replies",
     "option": "Option",
-    
+
     // Analysis Panel
     "ai_assistant_panel": "AI Assistant",
     "needs_followup": "Needs Follow-up",
@@ -172,14 +173,14 @@ export const translations = {
     "timeline": "Timeline",
     "auto_followup": "Auto Follow-up",
     "auto_followup_desc": "Automatically send follow-up after 12 hours of no response",
-    
+
     // Quick Reply Categories
     "quick_reply_price": "Price Inquiry",
     "quick_reply_inspection": "Inspection Schedule",
     "quick_reply_property_info": "Property Information",
     "quick_reply_contract": "Contract Inquiry",
     "quick_reply_general": "General Reply",
-    
+
     // Toasts
     "sync_complete": "Sync Complete",
     "sync_complete_desc": "Conversations synced from Facebook",
@@ -192,7 +193,7 @@ export const translations = {
     "hot_lead": "Hot Lead",
     "warm_lead": "Warm Lead",
     "cold_lead": "Cold Lead",
-    
+
     // Dashboard
     "action_dashboard": "Action Dashboard",
     "needs_followup_tab": "Needs Follow-up",
@@ -206,7 +207,7 @@ export const translations = {
     "avg_response_time": "Avg Response Time",
     "hours": "hours",
     "no_results": "No Results",
-    
+
     // Listings
     "listings": "Property Listings",
     "add_listing": "Add Property",
@@ -216,7 +217,8 @@ export const translations = {
     "remove_listing": "Remove Property",
     "no_listings": "No properties linked",
     "add_first_listing": "Click to add property",
-    "select_listing": "Select Property",
+    "select_listing": "Select Listing",
+    "suggest_property": "Suggest Property",
     "create_new_listing": "Create New Property",
     "listing_title": "Property Title",
     "listing_address": "Address",
@@ -230,7 +232,7 @@ export const translations = {
     "select_property": "Select property to generate reply",
     "multiple_listings": "Multiple Properties",
     "which_property": "This conversation has multiple linked properties. Please select which one to use:",
-    
+
     // Property Carousel
     "recommended_properties": "Recommended Properties",
     "ai_recommends": "AI Recommends",
@@ -244,7 +246,7 @@ export const translations = {
     "view_contract": "View Contract",
     "available_inspection": "Available Times",
     "property_details": "Property Details",
-    
+
     // Property Modal Fields
     "contract_link": "Contract Link",
     "contract_link_placeholder": "https://example.com/contract.pdf",

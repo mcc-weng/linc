@@ -217,17 +217,33 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   };
 
   const handleManualListingSelect = (listing: Listing) => {
-    // Add the selected listing to the carousel if not already there
-    setCarouselListings((prev) => {
-      const exists = prev.some(l => l.id === listing.id);
+    // Add the selected listing to the recommended list
+    if (!recommendations) {
+      setRecommendations({
+        recommendedListingIds: [listing.id],
+        recommendedListings: [listing],
+        reasoning: language === "zh" ? "手動建議的物件" : "Manually suggested property",
+        buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
+      });
+    } else {
+      const exists = recommendations.recommendedListings.some(l => l.id === listing.id);
       if (exists) {
         toast({
-          title: language === "zh" ? "物件已存在" : "Listing Already Added",
-          description: language === "zh" ? "此物件已在推薦列表中" : "This listing is already in the recommendations",
+          title: language === "zh" ? "物件已存在" : "Property Already Suggested",
+          description: language === "zh" ? "此物件已在推薦列表中" : "This property is already in the recommendations",
         });
-        return prev;
+        setIsSelectListingModalOpen(false);
+        return;
       }
-      return [...prev, listing];
+      setRecommendations({
+        ...recommendations,
+        recommendedListingIds: [...recommendations.recommendedListingIds, listing.id],
+        recommendedListings: [...recommendations.recommendedListings, listing],
+      });
+    }
+    toast({
+      title: language === "zh" ? "已新增建議物件" : "Property Suggested",
+      description: language === "zh" ? `已將「${listing.title}」加入推薦列表` : `Added "${listing.title}" to recommendations`,
     });
     setIsSelectListingModalOpen(false);
   };
@@ -317,13 +333,13 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
             {t("add_listing")}
           </Button>
           <Button
-            variant="outline" // Changed to outline for better visibility
+            variant="outline"
             size="sm"
-            onClick={() => setIsSelectListingModalOpen(true)} // Open the new modal
-            data-testid="button-select-listing"
+            onClick={() => setIsSelectListingModalOpen(true)}
+            data-testid="button-suggest-property"
           >
             <ListFilter className="w-4 h-4 mr-1" />
-            {t("select_listing")}
+            {t("suggest_property")}
           </Button>
           <Button
             variant="ghost"
@@ -611,7 +627,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         listings={allListings || []}
         primaryListingId={null}
         onSelect={handleManualListingSelect}
-        title={language === "zh" ? "選擇推薦物件" : "Select Listing to Recommend"}
+        title={language === "zh" ? "建議物件給客戶" : "Suggest Property to Customer"}
       />
     </div>
   );
