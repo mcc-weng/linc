@@ -110,7 +110,7 @@ export default function PropertyCarousel({
   }
 
   return (
-    <div className="space-y-3 min-w-0 w-full">
+    <div className="space-y-3 w-full overflow-hidden">
       {reasoning && (
         <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10 max-w-full">
           <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
@@ -120,7 +120,8 @@ export default function PropertyCarousel({
       
       <div 
         ref={carouselRef}
-        className="flex gap-3 pb-2 overflow-x-auto cursor-grab active:cursor-grabbing"
+        className="flex gap-3 pb-2 overflow-x-scroll scrollbar-hide cursor-grab active:cursor-grabbing"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
