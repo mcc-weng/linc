@@ -15,10 +15,13 @@ import {
   ChevronRight,
   RefreshCw,
   ThermometerSun,
-  Snowflake
+  Snowflake,
+  Globe
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
+import { useLanguage } from "@/lib/LanguageContext";
+import { getTranslation, translations } from "@/lib/language";
 import type { Conversation } from "@shared/schema";
 
 interface DashboardData {
@@ -52,7 +55,8 @@ const leadScoreConfig = {
   },
 };
 
-function ConversationCard({ conversation, showFollowUp = false }: { conversation: Conversation; showFollowUp?: boolean }) {
+function ConversationCard({ conversation, showFollowUp = false, language }: { conversation: Conversation; showFollowUp?: boolean; language: "zh" | "en" }) {
+  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
   const score = conversation.leadScore as "hot" | "warm" | "cold" | null;
   const config = score ? leadScoreConfig[score] : null;
   
@@ -79,7 +83,7 @@ function ConversationCard({ conversation, showFollowUp = false }: { conversation
                 )}
               </div>
               <p className="text-sm text-muted-foreground truncate mb-2">
-                {conversation.lastMessage || "無訊息"}
+                {conversation.lastMessage || (language === "zh" ? "無訊息" : "No messages")}
               </p>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -89,12 +93,12 @@ function ConversationCard({ conversation, showFollowUp = false }: { conversation
                 {showFollowUp && (
                   <span className="flex items-center gap-1 text-yellow-600">
                     <Clock className="w-3 h-3" />
-                    {getInactiveHours()}h 未回覆
+                    {getInactiveHours()}h {language === "zh" ? "未回覆" : "no reply"}
                   </span>
                 )}
                 {(conversation.unreadCount ?? 0) > 0 && (
                   <Badge variant="destructive" className="h-5 px-1.5">
-                    {conversation.unreadCount} 未讀
+                    {conversation.unreadCount} {language === "zh" ? "未讀" : "unread"}
                   </Badge>
                 )}
               </div>
@@ -108,6 +112,8 @@ function ConversationCard({ conversation, showFollowUp = false }: { conversation
 }
 
 export default function Dashboard() {
+  const { language, setLanguage } = useLanguage();
+  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
   const { data: dashboardData, isLoading, refetch, isRefetching } = useQuery<DashboardData>({
     queryKey: ["/api/dashboard"],
     refetchInterval: 60000, // Auto-refresh every minute
@@ -123,18 +129,28 @@ export default function Dashboard() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-semibold">行動儀表板</h1>
+          <h1 className="text-xl font-semibold">{t("action_dashboard")}</h1>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          data-testid="button-refresh-dashboard"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-          刷新
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+            data-testid="button-toggle-language"
+          >
+            <Globe className="w-5 h-5" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            data-testid="button-refresh-dashboard"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
+            {t("refresh")}
+          </Button>
+        </div>
       </header>
 
       <div className="max-w-6xl mx-auto p-4 md:p-6">
@@ -142,7 +158,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>總對話數</CardDescription>
+              <CardDescription>{t("total_conversations")}</CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-total">
                 {dashboardData?.stats?.totalConversations || 0}
               </CardTitle>
@@ -152,7 +168,7 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-1">
                 <Flame className="w-3 h-3 text-destructive" />
-                熱客戶
+                {t("hot_leads_count")}
               </CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-hot">
                 {dashboardData?.stats?.hotLeadsCount || 0}
@@ -163,7 +179,7 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-1">
                 <ThermometerSun className="w-3 h-3 text-primary" />
-                溫客戶
+                {t("warm_leads_count")}
               </CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-warm">
                 {dashboardData?.stats?.warmLeadsCount || 0}
@@ -174,7 +190,7 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
               <CardDescription className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                平均回覆
+                {language === "zh" ? "平均回覆" : "Avg Response"}
               </CardDescription>
               <CardTitle className="text-2xl" data-testid="stat-response-time">
                 {dashboardData?.stats?.avgResponseTimeHours?.toFixed(1) || "0"}h
@@ -188,7 +204,7 @@ export default function Dashboard() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="followup" className="gap-2" data-testid="tab-followup">
               <AlertTriangle className="w-4 h-4" />
-              需追蹤
+              {language === "zh" ? "需追蹤" : "Follow-up"}
               {(dashboardData?.needsFollowUp?.length || 0) > 0 && (
                 <Badge variant="destructive" className="ml-1 h-5 px-1.5">
                   {dashboardData?.needsFollowUp?.length}
@@ -197,7 +213,7 @@ export default function Dashboard() {
             </TabsTrigger>
             <TabsTrigger value="hot" className="gap-2" data-testid="tab-hot">
               <Flame className="w-4 h-4" />
-              熱客戶
+              {language === "zh" ? "熱客戶" : "Hot"}
               {(dashboardData?.hotLeads?.length || 0) > 0 && (
                 <Badge className="bg-destructive text-destructive-foreground ml-1 h-5 px-1.5">
                   {dashboardData?.hotLeads?.length}
@@ -206,7 +222,7 @@ export default function Dashboard() {
             </TabsTrigger>
             <TabsTrigger value="unread" className="gap-2" data-testid="tab-unread">
               <MessageSquare className="w-4 h-4" />
-              未讀
+              {language === "zh" ? "未讀" : "Unread"}
               {(dashboardData?.unread?.length || 0) > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                   {dashboardData?.unread?.length}
@@ -220,8 +236,8 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">沒有需要追蹤的對話</p>
-                  <p className="text-sm text-muted-foreground">所有對話都在跟進中</p>
+                  <p className="text-muted-foreground">{language === "zh" ? "沒有需要追蹤的對話" : "No conversations needing follow-up"}</p>
+                  <p className="text-sm text-muted-foreground">{language === "zh" ? "所有對話都在跟進中" : "All conversations are being followed up"}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -230,7 +246,8 @@ export default function Dashboard() {
                   {dashboardData.needsFollowUp.map((conversation) => (
                     <ConversationCard 
                       key={conversation.id} 
-                      conversation={conversation} 
+                      conversation={conversation}
+                      language={language}
                       showFollowUp={true}
                     />
                   ))}
@@ -244,8 +261,8 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <Flame className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">沒有熱客戶</p>
-                  <p className="text-sm text-muted-foreground">分析對話以識別熱客戶</p>
+                  <p className="text-muted-foreground">{language === "zh" ? "沒有熱客戶" : "No hot leads"}</p>
+                  <p className="text-sm text-muted-foreground">{language === "zh" ? "分析對話以識別熱客戶" : "Analyze conversations to identify hot leads"}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -255,6 +272,7 @@ export default function Dashboard() {
                     <ConversationCard 
                       key={conversation.id} 
                       conversation={conversation}
+                      language={language}
                     />
                   ))}
                 </div>
@@ -267,8 +285,8 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">沒有未讀訊息</p>
-                  <p className="text-sm text-muted-foreground">所有訊息都已讀取</p>
+                  <p className="text-muted-foreground">{language === "zh" ? "沒有未讀訊息" : "No unread messages"}</p>
+                  <p className="text-sm text-muted-foreground">{language === "zh" ? "所有訊息都已讀取" : "All messages are read"}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -278,6 +296,7 @@ export default function Dashboard() {
                     <ConversationCard 
                       key={conversation.id} 
                       conversation={conversation}
+                      language={language}
                     />
                   ))}
                 </div>

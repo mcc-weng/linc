@@ -183,7 +183,7 @@ export default function Chat() {
           </Button>
           <MessageSquare className="w-6 h-6 text-primary" />
           <h1 className="text-xl font-semibold">
-            {selectedConversation ? selectedConversation.buyerName : "AI 房地產詢問助理"}
+            {selectedConversation ? selectedConversation.buyerName : t("ai_assistant")}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -191,7 +191,7 @@ export default function Chat() {
           <Link href="/dashboard">
             <Button variant="outline" size="sm" data-testid="button-dashboard">
               <LayoutDashboard className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">儀表板</span>
+              <span className="hidden sm:inline">{t("dashboard")}</span>
             </Button>
           </Link>
 
@@ -205,7 +205,7 @@ export default function Chat() {
               data-testid="button-sync-facebook"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${syncFacebookMutation.isPending ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">同步 Facebook</span>
+              <span className="hidden sm:inline">{t("sync_facebook")}</span>
             </Button>
           )}
           
@@ -279,9 +279,9 @@ export default function Chat() {
                   <div className="space-y-3">
                     <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto" />
                     <div>
-                      <h2 className="text-lg font-semibold mb-1">選擇對話</h2>
+                      <h2 className="text-lg font-semibold mb-1">{t("select_conversation")}</h2>
                       <p className="text-sm text-muted-foreground">
-                        從左側選擇一個買家對話開始
+                        {t("select_from_left")}
                       </p>
                     </div>
                   </div>
