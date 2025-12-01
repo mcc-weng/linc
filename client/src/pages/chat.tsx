@@ -295,6 +295,7 @@ export default function Chat() {
                       role={message.role as "buyer" | "agent" | "system"}
                       timestamp={formatTimestamp(message.timestamp)}
                       platform={message.platform || undefined}
+                      buyerName={message.role === "buyer" ? selectedConversation?.buyerName : undefined}
                     />
                   ))}
                   <div ref={scrollRef} />

@@ -1,15 +1,16 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { User, Bot } from "lucide-react";
+import { User } from "lucide-react";
 
 interface ChatMessageProps {
   content: string;
   role: "buyer" | "agent" | "system";
   timestamp?: string;
   platform?: string;
+  buyerName?: string;
 }
 
-export default function ChatMessage({ content, role, timestamp, platform }: ChatMessageProps) {
+export default function ChatMessage({ content, role, timestamp, platform, buyerName }: ChatMessageProps) {
   const isBuyer = role === "buyer";
   const isSystem = role === "system";
 
@@ -40,9 +41,11 @@ export default function ChatMessage({ content, role, timestamp, platform }: Chat
       )}
       
       <div className={cn("flex flex-col gap-1 max-w-[75%]", !isBuyer && "items-end")}>
-        <span className="text-xs font-medium text-muted-foreground px-2">
-          {isBuyer ? "買家" : "您"}
-        </span>
+        {isBuyer && buyerName && (
+          <span className="text-xs font-medium text-muted-foreground px-2">
+            {buyerName}
+          </span>
+        )}
         <div
           className={cn(
             "px-4 py-2.5 rounded-2xl text-base leading-relaxed",
@@ -60,14 +63,6 @@ export default function ChatMessage({ content, role, timestamp, platform }: Chat
           </span>
         )}
       </div>
-
-      {!isBuyer && (
-        <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarFallback className="bg-accent text-accent-foreground">
-            <Bot className="w-4 h-4" />
-          </AvatarFallback>
-        </Avatar>
-      )}
     </div>
   );
 }
