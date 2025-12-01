@@ -140,16 +140,21 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       return response.json() as Promise<FollowUpSuggestions>;
     },
     onSuccess: (data) => {
+      const urgencyLabels = {
+        high: language === "zh" ? "高" : "High",
+        medium: language === "zh" ? "中" : "Medium",
+        low: language === "zh" ? "低" : "Low",
+      };
       toast({
-        title: "追蹤建議已生成",
-        description: `緊急程度：${data.urgencyLevel === "high" ? "高" : data.urgencyLevel === "medium" ? "中" : "低"}`,
+        title: language === "zh" ? "追蹤建議已生成" : "Follow-up Suggestions Generated",
+        description: `${language === "zh" ? "緊急程度" : "Urgency"}：${urgencyLabels[data.urgencyLevel]}`,
       });
     },
     onError: () => {
       toast({
         variant: "destructive",
-        title: "生成失敗",
-        description: "無法生成追蹤建議",
+        title: language === "zh" ? "生成失敗" : "Generation Failed",
+        description: language === "zh" ? "無法生成追蹤建議" : "Unable to generate follow-up suggestions",
       });
     },
   });
@@ -173,8 +178,8 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversation?.id, "summary"] });
       toast({
-        title: "摘要已更新",
-        description: "AI 對話摘要已重新生成",
+        title: language === "zh" ? "摘要已更新" : "Summary Updated",
+        description: language === "zh" ? "AI 對話摘要已重新生成" : "AI conversation summary has been regenerated",
       });
     },
   });
@@ -195,8 +200,8 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "發送失敗",
-        description: "無法生成快速回覆",
+        title: language === "zh" ? "發送失敗" : "Send Failed",
+        description: language === "zh" ? "無法生成快速回覆" : "Unable to generate quick reply",
       });
     }
   };
@@ -205,8 +210,8 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     return (
       <div className="h-full flex items-center justify-center p-8 text-center">
         <div className="space-y-2">
-          <p className="text-muted-foreground">選擇一個對話</p>
-          <p className="text-sm text-muted-foreground">查看 AI 分析和快速回覆</p>
+          <p className="text-muted-foreground">{t("select_conversation")}</p>
+          <p className="text-sm text-muted-foreground">{language === "zh" ? "查看 AI 分析和快速回覆" : "View AI analysis and quick replies"}</p>
         </div>
       </div>
     );
@@ -303,6 +308,8 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               <div className="grid grid-cols-2 gap-2">
                 {quickReplies.slice(0, 6).map((template) => {
                   const Icon = quickReplyIcons[template.category] || MessageSquare;
+                  const categoryKey = `quick_reply_${template.category}` as keyof typeof translations.zh;
+                  const translatedLabel = t(categoryKey) || template.label;
                   return (
                     <Button
                       key={template.id}
@@ -313,7 +320,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                       data-testid={`quick-reply-${template.id}`}
                     >
                       <Icon className="w-3 h-3 mr-1" />
-                      {template.label}
+                      {translatedLabel}
                     </Button>
                   );
                 })}
@@ -361,7 +368,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   )}
                   {aiSummary.questionsAsked?.length > 0 && (
                     <div>
-                      <p className="text-muted-foreground text-xs mb-1">問過的問題：</p>
+                      <p className="text-muted-foreground text-xs mb-1">{language === "zh" ? "問過的問題：" : "Questions Asked:"}</p>
                       <ul className="text-xs space-y-1 pl-4">
                         {aiSummary.questionsAsked.map((q, i) => (
                           <li key={i} className="list-disc">{q}</li>
@@ -371,7 +378,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   )}
                   {aiSummary.pendingActions?.length > 0 && (
                     <div>
-                      <p className="text-muted-foreground text-xs mb-1">待處理：</p>
+                      <p className="text-muted-foreground text-xs mb-1">{language === "zh" ? "待處理：" : "Pending Actions:"}</p>
                       <ul className="space-y-1">
                         {aiSummary.pendingActions.map((action, i) => (
                           <li key={i} className="flex items-center gap-1 text-xs">

@@ -44,6 +44,13 @@ export const translations = {
     "auto_followup": "自動追蹤",
     "auto_followup_desc": "12小時未回覆自動發送追蹤",
     
+    // Quick Reply Categories
+    "quick_reply_price": "價格查詢",
+    "quick_reply_inspection": "檢驗安排",
+    "quick_reply_property_info": "物業資訊",
+    "quick_reply_contract": "合約詢問",
+    "quick_reply_general": "一般回覆",
+    
     // Toasts
     "sync_complete": "同步完成",
     "sync_complete_desc": "已從 Facebook 同步對話",
@@ -113,6 +120,13 @@ export const translations = {
     "timeline": "Timeline",
     "auto_followup": "Auto Follow-up",
     "auto_followup_desc": "Automatically send follow-up after 12 hours of no response",
+    
+    // Quick Reply Categories
+    "quick_reply_price": "Price Inquiry",
+    "quick_reply_inspection": "Inspection Schedule",
+    "quick_reply_property_info": "Property Information",
+    "quick_reply_contract": "Contract Inquiry",
+    "quick_reply_general": "General Reply",
     
     // Toasts
     "sync_complete": "Sync Complete",
