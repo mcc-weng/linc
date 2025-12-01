@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,29 @@ const quickReplyIcons: Record<string, typeof DollarSign> = {
 
 export default function AnalysisPanel({ analysis, conversation, onClose, onSendMessage }: AnalysisPanelProps) {
   const { toast } = useToast();
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!carouselRef.current) return;
+    setIsDragging(true);
+    setDragStart(e.pageX - carouselRef.current.offsetLeft);
+    setScrollLeft(carouselRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !carouselRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - carouselRef.current.offsetLeft;
+    const walk = (x - dragStart) * 1;
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   // Fetch follow-up status
   const { data: followUpStatus } = useQuery<FollowUpStatus>({
@@ -243,11 +266,19 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div 
+                  ref={carouselRef}
+                  className="flex gap-2 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing"
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  data-testid="carousel-suggestions"
+                >
                   {followUpMutation.data.suggestions.map((suggestion, index) => (
                     <div 
                       key={index}
-                      className="flex-shrink-0 min-w-max p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate max-w-xs"
+                      className="flex-shrink-0 min-w-max p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate max-w-xs select-none"
                       onClick={() => onSendMessage(suggestion)}
                       data-testid={`followup-suggestion-${index}`}
                     >
