@@ -660,7 +660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Associate a listing with a conversation
+  // Associate a listing with a conversation (legacy - sets primary listing)
   app.post("/api/conversations/:id/listing", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -682,6 +682,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error associating listing:", error);
       res.status(500).json({ error: "Failed to associate listing" });
+    }
+  });
+
+  // ==========================================
+  // Conversation Listings (Multi-Listing Support)
+  // ==========================================
+
+  // Get all listings linked to a conversation
+  app.get("/api/conversations/:id/listings", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const listings = await storage.getConversationListings(id);
+      
+      // Include primary listing ID for context
+      res.json({
+        listings,
+        primaryListingId: conversation.listingId,
+      });
+    } catch (error) {
+      console.error("Error fetching conversation listings:", error);
+      res.status(500).json({ error: "Failed to fetch conversation listings" });
+    }
+  });
+
+  // Link a listing to a conversation
+  app.post("/api/conversations/:id/listings", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+
+      const { listingId, setPrimary } = req.body;
+      if (!listingId || typeof listingId !== "number") {
+        return res.status(400).json({ error: "listingId is required and must be a number" });
+      }
+
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      const listing = await storage.getListing(listingId);
+      if (!listing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+
+      // Link the listing to the conversation
+      const link = await storage.linkListingToConversation(id, listingId);
+
+      // If setPrimary is true or this is the first listing, set it as primary
+      if (setPrimary === true) {
+        await storage.setPrimaryListing(id, listingId);
+      }
+
+      const updatedListings = await storage.getConversationListings(id);
+      const updatedConversation = await storage.getConversation(id);
+
+      res.status(201).json({
+        link,
+        listings: updatedListings,
+        primaryListingId: updatedConversation?.listingId,
+      });
+    } catch (error) {
+      console.error("Error linking listing to conversation:", error);
+      res.status(500).json({ error: "Failed to link listing to conversation" });
+    }
+  });
+
+  // Unlink a listing from a conversation
+  app.delete("/api/conversations/:id/listings/:listingId", async (req, res) => {
+    try {
+      const conversationId = parseInt(req.params.id, 10);
+      const listingId = parseInt(req.params.listingId, 10);
+      
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      await storage.unlinkListingFromConversation(conversationId, listingId);
+
+      const updatedListings = await storage.getConversationListings(conversationId);
+      const updatedConversation = await storage.getConversation(conversationId);
+
+      res.json({
+        success: true,
+        listings: updatedListings,
+        primaryListingId: updatedConversation?.listingId,
+      });
+    } catch (error) {
+      console.error("Error unlinking listing from conversation:", error);
+      res.status(500).json({ error: "Failed to unlink listing from conversation" });
+    }
+  });
+
+  // Set a listing as primary for a conversation
+  app.put("/api/conversations/:id/listings/:listingId/primary", async (req, res) => {
+    try {
+      const conversationId = parseInt(req.params.id, 10);
+      const listingId = parseInt(req.params.listingId, 10);
+      
+      if (isNaN(conversationId)) {
+        return res.status(400).json({ error: "Invalid conversation ID" });
+      }
+      if (isNaN(listingId)) {
+        return res.status(400).json({ error: "Invalid listing ID" });
+      }
+
+      const listing = await storage.getListing(listingId);
+      if (!listing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+
+      const conversation = await storage.setPrimaryListing(conversationId, listingId);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      // Update usage timestamp
+      await storage.updateConversationListingUsage(conversationId, listingId);
+
+      const listings = await storage.getConversationListings(conversationId);
+
+      res.json({
+        success: true,
+        conversation,
+        listings,
+        primaryListingId: conversation.listingId,
+      });
+    } catch (error) {
+      console.error("Error setting primary listing:", error);
+      res.status(500).json({ error: "Failed to set primary listing" });
     }
   });
 
