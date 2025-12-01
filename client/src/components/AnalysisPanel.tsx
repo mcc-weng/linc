@@ -324,12 +324,12 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                           key={template.id}
                           variant="outline"
                           size="sm"
-                          className="justify-start text-xs min-w-0"
+                          className="justify-start text-xs min-w-0 h-auto py-2"
                           onClick={() => handleQuickReply(template)}
                           data-testid={`quick-reply-${template.id}`}
                         >
-                          <Icon className="w-3 h-3 mr-1 flex-shrink-0" />
-                          <span className="truncate">{translatedLabel}</span>
+                          <Icon className="w-3 h-3 mr-1 flex-shrink-0 mt-0.5" />
+                          <span className="whitespace-normal text-left">{translatedLabel}</span>
                         </Button>
                       );
                     });
