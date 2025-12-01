@@ -89,17 +89,17 @@ export default function PropertyCarousel({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0 w-full">
       {reasoning && (
-        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10 max-w-full">
+        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
           <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
           <p className="text-xs text-muted-foreground leading-relaxed break-words">{reasoning}</p>
         </div>
       )}
       
-      <div className="w-full max-w-full overflow-hidden">
+      <div className="min-w-0 w-full overflow-hidden">
         <ScrollArea className="w-full whitespace-nowrap rounded-md">
-          <div className="flex gap-3 pb-4 w-max cursor-grab active:cursor-grabbing select-none">
+          <div className="flex gap-3 pb-4 cursor-grab active:cursor-grabbing select-none">
             {listings.map((listing) => (
             <Card 
               key={listing.id} 
