@@ -242,17 +242,19 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   追蹤建議
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {followUpMutation.data.suggestions.map((suggestion, index) => (
-                  <div 
-                    key={index}
-                    className="p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate"
-                    onClick={() => onSendMessage(suggestion)}
-                    data-testid={`followup-suggestion-${index}`}
-                  >
-                    {suggestion}
-                  </div>
-                ))}
+              <CardContent>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {followUpMutation.data.suggestions.map((suggestion, index) => (
+                    <div 
+                      key={index}
+                      className="flex-shrink-0 min-w-max p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate max-w-xs"
+                      onClick={() => onSendMessage(suggestion)}
+                      data-testid={`followup-suggestion-${index}`}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
