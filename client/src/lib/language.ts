@@ -1,0 +1,148 @@
+export type Language = "zh" | "en";
+
+export const translations = {
+  zh: {
+    // Header
+    "ai_assistant": "AI 房地產詢問助理",
+    "dashboard": "儀表板",
+    "sync_facebook": "同步 Facebook",
+    "facebook_connected": "Facebook 已連接",
+    "facebook_not_connected": "Facebook 未連接",
+    
+    // Chat
+    "select_conversation": "選擇對話",
+    "select_from_left": "從左側選擇一個買家對話開始",
+    "enter_message": "輸入買家訊息... (Enter 送出，Shift+Enter 換行)",
+    "analyze": "分析對話",
+    
+    // Input
+    "ai_analysis_summary": "AI 分析摘要",
+    "suggested_replies": "建議回覆",
+    "option": "選項",
+    
+    // Analysis Panel
+    "ai_assistant_panel": "AI 助理",
+    "needs_followup": "需要追蹤",
+    "buyer_inactive": "買家已",
+    "hours_inactive": "小時未回覆",
+    "generate_followup": "生成追蹤建議",
+    "followup_suggestions": "追蹤建議",
+    "quick_reply": "快速回覆",
+    "conversation_summary": "對話摘要",
+    "refresh": "刷新",
+    "generate_summary": "點擊刷新按鈕生成對話摘要",
+    "customer_hotness": "客戶熱度",
+    "reason": "原因",
+    "suggested_followup": "建議跟進：",
+    "days_later": "天後",
+    "buyer_info": "買家資料",
+    "budget": "預算",
+    "location": "地點",
+    "property_type": "物業類型",
+    "purpose": "用途",
+    "timeline": "時間表",
+    "auto_followup": "自動追蹤",
+    "auto_followup_desc": "12小時未回覆自動發送追蹤",
+    
+    // Toasts
+    "sync_complete": "同步完成",
+    "sync_complete_desc": "已從 Facebook 同步對話",
+    "sync_failed": "同步失敗",
+    "message_sent_failed": "發送訊息失敗",
+    "message_sent_error": "無法發送訊息，請稍後再試",
+    "ai_analysis_complete": "AI 分析完成",
+    "analysis_failed": "AI 分析失敗",
+    "analysis_error": "無法分析對話，請稍後再試",
+    "hot_lead": "熱客戶",
+    "warm_lead": "溫客戶",
+    "cold_lead": "冷客戶",
+    
+    // Dashboard
+    "action_dashboard": "行動儀表板",
+    "needs_followup_tab": "需要追蹤",
+    "hot_leads_tab": "熱客戶",
+    "unread_tab": "未讀",
+    "stats": "統計",
+    "total_conversations": "總對話數",
+    "hot_leads_count": "熱客戶",
+    "warm_leads_count": "溫客戶",
+    "cold_leads_count": "冷客戶",
+    "avg_response_time": "平均回應時間",
+    "hours": "小時",
+    "no_results": "沒有結果",
+  },
+  en: {
+    // Header
+    "ai_assistant": "AI Real Estate Assistant",
+    "dashboard": "Dashboard",
+    "sync_facebook": "Sync Facebook",
+    "facebook_connected": "Facebook Connected",
+    "facebook_not_connected": "Facebook Not Connected",
+    
+    // Chat
+    "select_conversation": "Select Conversation",
+    "select_from_left": "Select a buyer conversation from the left to start",
+    "enter_message": "Enter buyer message... (Enter to send, Shift+Enter for new line)",
+    "analyze": "Analyze Conversation",
+    
+    // Input
+    "ai_analysis_summary": "AI Analysis Summary",
+    "suggested_replies": "Suggested Replies",
+    "option": "Option",
+    
+    // Analysis Panel
+    "ai_assistant_panel": "AI Assistant",
+    "needs_followup": "Needs Follow-up",
+    "buyer_inactive": "Buyer inactive for",
+    "hours_inactive": "hours",
+    "generate_followup": "Generate Follow-up Suggestions",
+    "followup_suggestions": "Follow-up Suggestions",
+    "quick_reply": "Quick Reply",
+    "conversation_summary": "Conversation Summary",
+    "refresh": "Refresh",
+    "generate_summary": "Click refresh to generate conversation summary",
+    "customer_hotness": "Lead Temperature",
+    "reason": "Reason",
+    "suggested_followup": "Suggested Follow-up: ",
+    "days_later": "days",
+    "buyer_info": "Buyer Information",
+    "budget": "Budget",
+    "location": "Location",
+    "property_type": "Property Type",
+    "purpose": "Purpose",
+    "timeline": "Timeline",
+    "auto_followup": "Auto Follow-up",
+    "auto_followup_desc": "Automatically send follow-up after 12 hours of no response",
+    
+    // Toasts
+    "sync_complete": "Sync Complete",
+    "sync_complete_desc": "Conversations synced from Facebook",
+    "sync_failed": "Sync Failed",
+    "message_sent_failed": "Message Send Failed",
+    "message_sent_error": "Unable to send message, please try again later",
+    "ai_analysis_complete": "AI Analysis Complete",
+    "analysis_failed": "AI Analysis Failed",
+    "analysis_error": "Unable to analyze conversation, please try again later",
+    "hot_lead": "Hot Lead",
+    "warm_lead": "Warm Lead",
+    "cold_lead": "Cold Lead",
+    
+    // Dashboard
+    "action_dashboard": "Action Dashboard",
+    "needs_followup_tab": "Needs Follow-up",
+    "hot_leads_tab": "Hot Leads",
+    "unread_tab": "Unread",
+    "stats": "Statistics",
+    "total_conversations": "Total Conversations",
+    "hot_leads_count": "Hot Leads",
+    "warm_leads_count": "Warm Leads",
+    "cold_leads_count": "Cold Leads",
+    "avg_response_time": "Avg Response Time",
+    "hours": "hours",
+    "no_results": "No Results",
+  }
+};
+
+export function getTranslation(lang: Language, key: keyof typeof translations.zh): string {
+  return translations[lang][key] || translations.zh[key];
+}

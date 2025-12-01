@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff, RefreshCw, LayoutDashboard } from "lucide-react";
+import { MessageSquare, PanelRightOpen, PanelRightClose, PanelLeftOpen, PanelLeftClose, Wifi, WifiOff, RefreshCw, LayoutDashboard, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ import LoadingOverlay from "@/components/LoadingOverlay";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/LanguageContext";
+import { getTranslation, translations } from "@/lib/language";
 import type { LeadAnalysisResponse, Conversation, Message } from "@shared/schema";
 
 interface FacebookStatus {
@@ -29,6 +31,8 @@ export default function Chat() {
   const [isConversationListOpen, setIsConversationListOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { language, setLanguage } = useLanguage();
+  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
     queryKey: ["/api/conversations"],
@@ -214,15 +218,27 @@ export default function Chat() {
             {facebookStatus?.configured ? (
               <>
                 <Wifi className="w-3 h-3" />
-                <span className="hidden sm:inline">Facebook 已連接</span>
+                <span className="hidden sm:inline">{t("facebook_connected")}</span>
               </>
             ) : (
               <>
                 <WifiOff className="w-3 h-3" />
-                <span className="hidden sm:inline">Facebook 未連接</span>
+                <span className="hidden sm:inline">{t("facebook_not_connected")}</span>
               </>
             )}
           </Badge>
+
+          {/* Language Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
+            data-testid="button-toggle-language"
+            title={language === "zh" ? "Switch to English" : "切換中文"}
+          >
+            <Globe className="w-5 h-5" />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
