@@ -152,51 +152,99 @@ export async function sendMessage(recipientPsid: string, messageText: string): P
 }
 
 // Process incoming webhook message event
-export async function processWebhookMessage(senderId: string, pageId: string, messageId: string, messageText: string): Promise<void> {
+export async function processWebhookMessage(
+  senderId: string, 
+  recipientId: string,
+  pageId: string, 
+  messageId: string, 
+  messageText: string,
+  isEcho: boolean = false
+): Promise<void> {
   try {
+    // For echo messages (sent by page), the senderId is the page, and recipientId is the user
+    // For regular messages (from user), the senderId is the user
+    const userPsid = isEcho ? recipientId : senderId;
+    const role = isEcho ? "agent" : "buyer";
+    
     // Check if conversation exists
-    let conversation = await storage.getConversationByFacebookPsid(senderId);
+    let conversation = await storage.getConversationByFacebookPsid(userPsid);
     
     if (!conversation) {
       // Create new conversation
-      const userProfile = await getUserProfile(senderId);
+      const userProfile = await getUserProfile(userPsid);
       const buyerName = userProfile 
-        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || senderId
-        : senderId;
+        ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userPsid
+        : userPsid;
       
       const newConversation: InsertConversation = {
         buyerName,
         platform: "Messenger",
-        facebookPsid: senderId,
+        facebookPsid: userPsid,
         facebookPageId: pageId,
         profilePictureUrl: userProfile?.profile_pic || null,
-        unreadCount: 1,
+        unreadCount: isEcho ? 0 : 1,
       };
       
       conversation = await storage.createConversation(newConversation);
-    } else {
-      // Update unread count
+    } else if (!isEcho) {
+      // Update unread count only for incoming messages (not echoes)
       await storage.updateConversation(conversation.id, {
         unreadCount: (conversation.unreadCount || 0) + 1,
       });
+    }
+    
+    // Check if message already exists to avoid duplicates
+    const existingMessages = await storage.getMessages(conversation.id);
+    const messageExists = existingMessages.some(m => m.facebookMessageId === messageId);
+    
+    if (messageExists) {
+      console.log(`Skipping duplicate message: ${messageId}`);
+      return;
     }
     
     // Save the message
     const newMessage: InsertMessage = {
       conversationId: conversation.id,
       content: messageText,
-      role: "buyer",
-      platform: "Messenger",
+      role: role,
+      platform: isEcho ? null : "Messenger",
       facebookMessageId: messageId,
-      isRead: 0,
+      isRead: isEcho ? 1 : 0,
     };
     
     await storage.createMessage(newMessage);
     
-    console.log(`Processed incoming message from ${senderId}: ${messageText.substring(0, 50)}...`);
+    console.log(`Processed ${isEcho ? 'outgoing' : 'incoming'} message ${isEcho ? 'to' : 'from'} ${userPsid}: ${messageText.substring(0, 50)}...`);
   } catch (error) {
     console.error("Error processing webhook message:", error);
     throw error;
+  }
+}
+
+// Fetch the Page ID
+let cachedPageId: string | null = null;
+
+async function getPageId(): Promise<string | null> {
+  if (cachedPageId) return cachedPageId;
+  
+  try {
+    const token = getPageAccessToken();
+    const response = await fetch(
+      `${FACEBOOK_GRAPH_API_BASE}/me?access_token=${token}`
+    );
+    
+    if (!response.ok) {
+      console.error("Failed to fetch page ID:", await response.text());
+      return null;
+    }
+    
+    const data = await response.json();
+    cachedPageId = data.id;
+    console.log("Fetched Page ID:", cachedPageId);
+    return cachedPageId;
+  } catch (error) {
+    console.error("Error fetching page ID:", error);
+    return null;
   }
 }
 
@@ -205,22 +253,26 @@ export async function syncFacebookConversations(): Promise<void> {
   try {
     console.log("Starting Facebook conversation sync...");
     const fbConversations = await getPageConversations();
+    const pageId = await getPageId();
     
     for (const fbConv of fbConversations) {
       // Find the participant that is not the page (the user)
-      const participant = fbConv.participants?.data?.[0];
-      if (!participant) continue;
+      // Filter out the page from participants to find the customer
+      const participants = fbConv.participants?.data || [];
+      const customer = participants.find(p => p.id !== pageId) || participants[0];
+      
+      if (!customer) continue;
       
       // Check if conversation already exists
-      let conversation = await storage.getConversationByFacebookPsid(participant.id);
+      let conversation = await storage.getConversationByFacebookPsid(customer.id);
       
       if (!conversation) {
         // Create new conversation
-        const userProfile = await getUserProfile(participant.id);
+        const userProfile = await getUserProfile(customer.id);
         const newConversation: InsertConversation = {
-          buyerName: participant.name || userProfile?.first_name || participant.id,
+          buyerName: customer.name || userProfile?.first_name || customer.id,
           platform: "Messenger",
-          facebookPsid: participant.id,
+          facebookPsid: customer.id,
           profilePictureUrl: userProfile?.profile_pic || null,
         };
         
@@ -235,13 +287,14 @@ export async function syncFacebookConversations(): Promise<void> {
       for (const fbMsg of fbMessages.reverse()) { // Reverse to get oldest first
         if (!fbMsg.message || existingMessageIds.has(fbMsg.id)) continue;
         
-        const isFromUser = fbMsg.from.id !== process.env.FACEBOOK_PAGE_ID;
+        // Check if message is from the customer (buyer) or from the page (agent)
+        const isFromCustomer = fbMsg.from.id === customer.id;
         
         const newMessage: InsertMessage = {
           conversationId: conversation.id,
           content: fbMsg.message,
-          role: isFromUser ? "buyer" : "agent",
-          platform: isFromUser ? "Messenger" : null,
+          role: isFromCustomer ? "buyer" : "agent",
+          platform: isFromCustomer ? "Messenger" : null,
           facebookMessageId: fbMsg.id,
           isRead: 1,
         };

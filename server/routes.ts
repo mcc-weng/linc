@@ -69,17 +69,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Process each messaging event
         for (const event of entry.messaging || []) {
           const senderId = event.sender?.id;
+          const recipientId = event.recipient?.id;
           
           if (!senderId) continue;
 
-          // Handle incoming message
+          // Handle incoming message (or echo of sent message)
           if (event.message && event.message.text) {
+            const isEcho = event.message.is_echo === true;
+            
             try {
               await processWebhookMessage(
                 senderId,
+                recipientId || "",
                 pageId,
                 event.message.mid,
-                event.message.text
+                event.message.text,
+                isEcho
               );
             } catch (error) {
               console.error("Error processing webhook message:", error);
