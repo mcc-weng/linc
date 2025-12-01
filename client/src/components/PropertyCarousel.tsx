@@ -97,8 +97,8 @@ export default function PropertyCarousel({
         </div>
       )}
       
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-3 pb-3 w-max cursor-grab active:cursor-grabbing">
+      <ScrollArea className="w-full whitespace-nowrap rounded-md">
+        <div className="flex gap-3 pb-4 w-max cursor-grab active:cursor-grabbing">
           {listings.map((listing) => (
             <Card 
               key={listing.id} 
@@ -199,7 +199,7 @@ export default function PropertyCarousel({
             </Card>
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="horizontal" className="h-2.5" />
       </ScrollArea>
     </div>
   );
