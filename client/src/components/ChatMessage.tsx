@@ -26,7 +26,7 @@ export default function ChatMessage({ content, role, timestamp, platform }: Chat
   return (
     <div
       className={cn(
-        "flex gap-3 mb-4",
+        "flex gap-3 mb-6",
         isBuyer ? "justify-start" : "justify-end"
       )}
       data-testid={`message-${role}`}
@@ -40,6 +40,9 @@ export default function ChatMessage({ content, role, timestamp, platform }: Chat
       )}
       
       <div className={cn("flex flex-col gap-1 max-w-[75%]", !isBuyer && "items-end")}>
+        <span className="text-xs font-medium text-muted-foreground px-2">
+          {isBuyer ? "買家" : "您"}
+        </span>
         <div
           className={cn(
             "px-4 py-2.5 rounded-2xl text-base leading-relaxed",
