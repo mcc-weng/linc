@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, Wand2 } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import type { LeadAnalysisResponse } from "@shared/schema";
 
 interface ChatInputProps {
@@ -15,22 +14,13 @@ interface ChatInputProps {
   analysis: LeadAnalysisResponse | null;
 }
 
-const FAKE_MESSAGES = [
-  "你好，我想在 Chatswood 或 North Sydney 找 2 房公寓，預算大概 80-100 萬，有推薦的嗎？",
-  "Hi，我在找 Bondi 附近的 3 房 house，預算 150 萬以內，最好有花園",
-  "請問 Parramatta 現在的公寓市場怎麼樣？我想投資一間 1 房的",
-  "我要賣掉我在 Newtown 的房子，2 房 apartment，大概能賣多少？",
-  "有沒有 Sydney CBD 的 studio，預算 60 萬左右，要給女兒住的",
-];
-
 export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMessages = false, analysis }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [platform, setPlatform] = useState<string>("LINE");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading) {
-      onSend(message, platform);
+      onSend(message, "Messenger");
       setMessage("");
     }
   };
@@ -40,11 +30,6 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
       e.preventDefault();
       handleSubmit(e);
     }
-  };
-
-  const handleGenerateFake = () => {
-    const randomMessage = FAKE_MESSAGES[Math.floor(Math.random() * FAKE_MESSAGES.length)];
-    setMessage(randomMessage);
   };
 
   const handleSelectReply = (reply: string) => {
@@ -93,32 +78,8 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
 
       {/* Input Area */}
       <div className="p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Select value={platform} onValueChange={setPlatform} disabled={isLoading}>
-            <SelectTrigger className="w-[140px] h-9" data-testid="select-platform">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="LINE">LINE</SelectItem>
-              <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-              <SelectItem value="Messenger">Messenger</SelectItem>
-              <SelectItem value="Instagram">Instagram</SelectItem>
-              <SelectItem value="Email">Email</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateFake}
-            disabled={isLoading}
-            data-testid="button-generate-fake"
-          >
-            <Wand2 className="w-4 h-4 mr-2" />
-            測試訊息
-          </Button>
-
-          {hasMessages && (
+        {hasMessages && (
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -130,8 +91,8 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
               <Sparkles className="w-4 h-4 mr-2" />
               分析對話
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Textarea
