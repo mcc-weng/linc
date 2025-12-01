@@ -26,6 +26,8 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/lib/LanguageContext";
+import { getTranslation, translations } from "@/lib/language";
 import type { LeadAnalysisResponse, AISummary, Conversation, Listing, QuickReplyTemplate } from "@shared/schema";
 
 interface FollowUpStatus {
@@ -76,6 +78,8 @@ const quickReplyIcons: Record<string, typeof DollarSign> = {
 
 export default function AnalysisPanel({ analysis, conversation, onClose, onSendMessage }: AnalysisPanelProps) {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
@@ -213,7 +217,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   return (
     <div className="h-full flex flex-col" data-testid="analysis-panel">
       <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold">AI 助理</h3>
+        <h3 className="font-semibold">{t("ai_assistant_panel")}</h3>
         <Button
           variant="ghost"
           size="icon"
@@ -233,10 +237,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="font-medium text-sm">需要追蹤</span>
+                  <span className="font-medium text-sm">{t("needs_followup")}</span>
                 </div>
                 <p className="text-xs text-yellow-600 dark:text-yellow-500">
-                  買家已 {followUpStatus.hoursInactive} 小時未回覆
+                  {t("buyer_inactive")} {followUpStatus.hoursInactive} {t("hours_inactive")}
                 </p>
                 <Button 
                   size="sm" 
@@ -262,7 +266,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Clock className="w-4 h-4" />
-                  追蹤建議
+                  {t("followup_suggestions")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -293,7 +297,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           {/* Quick Reply Buttons */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">快速回覆</CardTitle>
+              <CardTitle className="text-sm">{t("quick_reply")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
@@ -321,7 +325,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">對話摘要</CardTitle>
+                <CardTitle className="text-sm">{t("conversation_summary")}</CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -384,7 +388,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  點擊刷新按鈕生成對話摘要
+                  {t("generate_summary")}
                 </p>
               )}
             </CardContent>
@@ -397,7 +401,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">客戶熱度</CardTitle>
+                  <CardTitle className="text-sm">{t("customer_hotness")}</CardTitle>
                   <Badge className={`${config.className} gap-1`} data-testid="badge-lead-score">
                     <config.icon className="w-3 h-3" />
                     {config.label}
@@ -406,12 +410,12 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">原因</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t("reason")}</p>
                   <p data-testid="text-lead-reason">{analysis.leadReason}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">
-                    建議跟進：<span className="text-foreground" data-testid="text-follow-up-days">{analysis.followUpInDays} 天後</span>
+                    {t("suggested_followup")}<span className="text-foreground" data-testid="text-follow-up-days">{analysis.followUpInDays} {t("days_later")}</span>
                   </p>
                 </div>
               </CardContent>
@@ -422,7 +426,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           {analysis && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">買家資料</CardTitle>
+                <CardTitle className="text-sm">{t("buyer_info")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {analysis.buyerProfile.budget && (
@@ -464,9 +468,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">自動追蹤</p>
+                  <p className="text-sm font-medium">{t("auto_followup")}</p>
                   <p className="text-xs text-muted-foreground">
-                    12小時未回覆自動發送追蹤
+                    {t("auto_followup_desc")}
                   </p>
                 </div>
                 <Switch

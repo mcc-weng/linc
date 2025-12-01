@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Send, Sparkles } from "lucide-react";
+import { useLanguage } from "@/lib/LanguageContext";
+import { getTranslation, translations } from "@/lib/language";
 import type { LeadAnalysisResponse } from "@shared/schema";
 
 interface ChatInputProps {
@@ -15,6 +17,8 @@ interface ChatInputProps {
 
 export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMessages = false, analysis }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const { language } = useLanguage();
+  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
@@ -67,7 +71,7 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold">AI 分析摘要</span>
+              <span className="text-sm font-semibold">{t("ai_analysis_summary")}</span>
             </div>
             <p className="text-sm text-muted-foreground line-clamp-2" data-testid="text-analysis-summary">
               {analysis.leadReason}
@@ -76,7 +80,7 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
 
           {/* Reply Suggestions Carousel */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground">建議回覆</span>
+            <span className="text-xs font-medium text-muted-foreground">{t("suggested_replies")}</span>
             <div 
               ref={carouselRef}
               className="flex gap-3 pb-2 overflow-x-auto cursor-grab active:cursor-grabbing"
@@ -94,7 +98,7 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
                   data-testid={`card-reply-${index + 1}`}
                 >
                   <CardContent className="p-3 space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">選項 {index + 1}</div>
+                    <div className="text-xs font-medium text-muted-foreground">{t("option")} {index + 1}</div>
                     <p className="text-sm line-clamp-3 leading-relaxed">{reply}</p>
                   </CardContent>
                 </Card>
@@ -117,7 +121,7 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
               data-testid="button-analyze"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              分析對話
+              {t("analyze")}
             </Button>
           </div>
         )}
@@ -127,7 +131,7 @@ export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMes
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="輸入買家訊息... (Enter 送出，Shift+Enter 換行)"
+            placeholder={language === "zh" ? "輸入買家訊息... (Enter 送出，Shift+Enter 換行)" : "Enter buyer message... (Enter to send, Shift+Enter for new line)"}
             className="min-h-[60px] max-h-[120px] resize-none"
             disabled={isLoading}
             data-testid="input-message"
