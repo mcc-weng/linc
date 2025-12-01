@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Home,
@@ -38,7 +37,29 @@ export default function PropertyCarousel({
 }: PropertyCarouselProps) {
   const { language } = useLanguage();
   const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!carouselRef.current) return;
+    setIsDragging(true);
+    setDragStart(e.pageX - carouselRef.current.offsetLeft);
+    setScrollLeft(carouselRef.current.scrollLeft);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !carouselRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - carouselRef.current.offsetLeft;
+    const walk = (x - dragStart) * 1;
+    carouselRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   const quickReplyButtons: { category: FAQCategory; icon: typeof DollarSign; labelKey: keyof typeof translations.zh }[] = [
     { category: "price", icon: DollarSign, labelKey: "quick_reply_price" },
@@ -91,21 +112,27 @@ export default function PropertyCarousel({
   return (
     <div className="space-y-3 min-w-0 w-full">
       {reasoning && (
-        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10">
+        <div className="flex items-start gap-2 p-2 rounded-md bg-primary/5 border border-primary/10 max-w-full">
           <Sparkles className="w-4 h-4 mt-0.5 text-primary shrink-0" />
           <p className="text-xs text-muted-foreground leading-relaxed break-words">{reasoning}</p>
         </div>
       )}
       
-      <div className="min-w-0 w-full overflow-hidden">
-        <ScrollArea className="w-full whitespace-nowrap rounded-md">
-          <div className="flex gap-3 pb-4 cursor-grab active:cursor-grabbing select-none">
-            {listings.map((listing) => (
+      <div 
+        ref={carouselRef}
+        className="flex gap-3 pb-2 overflow-x-auto cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        data-testid="carousel-properties"
+      >
+        {listings.map((listing) => (
             <Card 
-              key={listing.id} 
-              className="flex-shrink-0 w-[280px] overflow-hidden inline-block select-none"
-              data-testid={`property-card-${listing.id}`}
-            >
+            key={listing.id} 
+            className="flex-shrink-0 w-[280px] overflow-hidden select-none"
+            data-testid={`property-card-${listing.id}`}
+          >
               <CardHeader className="p-3 pb-2 space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-medium text-sm leading-tight line-clamp-2">
@@ -198,10 +225,7 @@ export default function PropertyCarousel({
                 </div>
               </CardFooter>
             </Card>
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" className="h-2.5" />
-      </ScrollArea>
+        ))}
       </div>
     </div>
   );
