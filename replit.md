@@ -14,8 +14,15 @@ The application is built as a full-stack MVP with a React frontend and Express b
 - **AI Conversation Summaries**: Generates structured summaries including buyer profile, questions asked, and pending actions
 - **Action Dashboard**: New `/dashboard` page showing leads needing follow-up, hot leads, and unread messages with stats overview
 
+### Multi-Listing Feature (Latest)
+- **ListingChipsBar**: Displays linked listings as chips below chat header, allows adding/removing/setting primary listings
+- **ListingSelectPopover**: Dialog for selecting a specific listing when multiple are linked to a conversation
+- **Property-Aware Quick Replies**: Quick reply templates now show active listing context and allow listing selection for disambiguation
+- **Junction Table Architecture**: `conversationListings` table manages many-to-many relationship between conversations and listings
+
 ### Schema Updates
 - Added `listings` table for property information (used in quick reply templates)
+- Added `conversationListings` junction table linking conversations to multiple listings with `isPrimary` flag
 - Added follow-up tracking fields to conversations (lastBuyerMessageAt, lastAgentMessageAt, autoFollowUpEnabled, followUpSentCount)
 - Added AI summary JSON storage field
 - Added follow-up logs table for tracking all follow-up actions
@@ -28,6 +35,10 @@ The application is built as a full-stack MVP with a React frontend and Express b
 - `POST /api/quick-replies/generate` - Generate quick reply message
 - `GET/POST/PATCH/DELETE /api/listings` - Listing CRUD operations
 - `GET /api/dashboard` - Dashboard data with categorized leads
+- `GET /api/conversations/:id/listings` - Get linked listings for a conversation
+- `POST /api/conversations/:id/listings` - Link a listing to conversation
+- `DELETE /api/conversations/:id/listings/:listingId` - Unlink a listing
+- `PUT /api/conversations/:id/listings/:listingId/primary` - Set listing as primary
 
 ## User Preferences
 
