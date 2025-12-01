@@ -305,7 +305,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               <CardTitle className="text-sm">{t("quick_reply")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {(() => {
                   const seen = new Set<string>();
                   return quickReplies
@@ -324,7 +324,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                           key={template.id}
                           variant="outline"
                           size="sm"
-                          className="justify-start text-xs min-w-0 h-auto py-2"
+                          className="justify-start text-xs min-w-0 h-auto py-2 flex-1 basis-[calc(50%-0.25rem)]"
                           onClick={() => handleQuickReply(template)}
                           data-testid={`quick-reply-${template.id}`}
                         >
