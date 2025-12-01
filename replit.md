@@ -15,10 +15,12 @@ The application is built as a full-stack MVP with a React frontend and Express b
 - **Action Dashboard**: New `/dashboard` page showing leads needing follow-up, hot leads, and unread messages with stats overview
 
 ### Multi-Listing Feature (Latest)
-- **ListingChipsBar**: Displays linked listings as chips below chat header, allows adding/removing/setting primary listings
-- **ListingSelectPopover**: Dialog for selecting a specific listing when multiple are linked to a conversation
-- **Property-Aware Quick Replies**: Quick reply templates now show active listing context and allow listing selection for disambiguation
-- **Junction Table Architecture**: `conversationListings` table manages many-to-many relationship between conversations and listings
+- **PropertyCarousel**: AI-recommended properties displayed in a horizontal carousel within the AI Assistant panel
+- **Property Cards with Quick Replies**: Each property card displays quick reply buttons (Price, Inspection, Property Info, Contract) directly underneath
+- **AI Property Recommendations**: OpenAI analyzes buyer conversation to recommend 1-3 matching properties based on budget, location, and preferences
+- **Add Property Button**: Moved to top of AI Assistant panel header for easy property management
+- **CreateListingModal**: Full property creation form with fields for contract link, inspection dates/times, and agent info
+- **ListingChipsBar**: Removed from chat area - all property management consolidated in AI panel
 
 ### Schema Updates
 - Added `listings` table for property information (used in quick reply templates)
@@ -39,6 +41,7 @@ The application is built as a full-stack MVP with a React frontend and Express b
 - `POST /api/conversations/:id/listings` - Link a listing to conversation
 - `DELETE /api/conversations/:id/listings/:listingId` - Unlink a listing
 - `PUT /api/conversations/:id/listings/:listingId/primary` - Set listing as primary
+- `POST /api/conversations/:id/recommendations` - AI analyzes conversation to recommend 1-3 matching properties
 
 ## User Preferences
 

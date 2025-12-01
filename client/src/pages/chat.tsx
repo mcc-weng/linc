@@ -9,7 +9,6 @@ import ChatInput from "@/components/ChatInput";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ConversationList from "@/components/ConversationList";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import ListingChipsBar from "@/components/ListingChipsBar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -278,11 +277,6 @@ export default function Chat() {
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Listing Chips Bar - Multi-listing support */}
-          {selectedConversation && (
-            <ListingChipsBar conversationId={selectedConversation.id} />
-          )}
-          
           <ScrollArea className="flex-1">
             <div className="max-w-4xl mx-auto p-4 md:p-6">
               {!selectedConversation ? (

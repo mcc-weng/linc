@@ -101,6 +101,34 @@ export const translations = {
     "select_property": "選擇物業以生成回覆",
     "multiple_listings": "多個物業",
     "which_property": "此對話關聯多個物業，請選擇要使用的物業：",
+    
+    // Property Carousel
+    "recommended_properties": "推薦物業",
+    "ai_recommends": "AI 推薦",
+    "get_ai_recommendations": "取得 AI 推薦",
+    "loading_recommendations": "正在分析買家需求...",
+    "no_properties_yet": "尚未新增物業",
+    "add_property_to_start": "點擊新增物業開始",
+    "bedrooms_short": "房",
+    "bathrooms_short": "衛",
+    "parking_short": "車位",
+    "view_contract": "查看合約",
+    "available_inspection": "可預約時間",
+    "property_details": "物業詳情",
+    
+    // Property Modal Fields
+    "contract_link": "合約連結",
+    "contract_link_placeholder": "https://example.com/contract.pdf",
+    "inspection_available_date": "可預約看房日期",
+    "inspection_available_time": "可預約時段",
+    "inspection_time_placeholder": "例如：10:00-12:00, 14:00-16:00",
+    "strata_fee": "管理費",
+    "bedrooms": "房間數",
+    "bathrooms": "衛浴數",
+    "parking": "車位",
+    "agent_name": "經紀人姓名",
+    "agent_mobile": "經紀人電話",
+    "quick_actions": "快速操作",
   },
   en: {
     // Header
@@ -202,6 +230,34 @@ export const translations = {
     "select_property": "Select property to generate reply",
     "multiple_listings": "Multiple Properties",
     "which_property": "This conversation has multiple linked properties. Please select which one to use:",
+    
+    // Property Carousel
+    "recommended_properties": "Recommended Properties",
+    "ai_recommends": "AI Recommends",
+    "get_ai_recommendations": "Get AI Recommendations",
+    "loading_recommendations": "Analyzing buyer needs...",
+    "no_properties_yet": "No properties added yet",
+    "add_property_to_start": "Click to add property",
+    "bedrooms_short": "bed",
+    "bathrooms_short": "bath",
+    "parking_short": "parking",
+    "view_contract": "View Contract",
+    "available_inspection": "Available Times",
+    "property_details": "Property Details",
+    
+    // Property Modal Fields
+    "contract_link": "Contract Link",
+    "contract_link_placeholder": "https://example.com/contract.pdf",
+    "inspection_available_date": "Available Inspection Date",
+    "inspection_available_time": "Available Time Slots",
+    "inspection_time_placeholder": "e.g., 10:00-12:00, 14:00-16:00",
+    "strata_fee": "Strata Fee",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "parking": "Parking",
+    "agent_name": "Agent Name",
+    "agent_mobile": "Agent Mobile",
+    "quick_actions": "Quick Actions",
   }
 };
 

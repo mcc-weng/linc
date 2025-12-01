@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,20 +22,17 @@ import {
   MapPin,
   Target,
   MessageSquare,
-  Star
+  Plus,
+  Sparkles,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getTranslation, translations } from "@/lib/language";
-import ListingSelectPopover from "@/components/ListingSelectPopover";
-import type { LeadAnalysisResponse, AISummary, Conversation, Listing, QuickReplyTemplate } from "@shared/schema";
-
-interface ConversationListingsResponse {
-  listings: Listing[];
-  primaryListingId: number | null;
-}
+import PropertyCarousel from "@/components/PropertyCarousel";
+import CreateListingModal from "@/components/CreateListingModal";
+import type { LeadAnalysisResponse, AISummary, Conversation, Listing, FAQCategory, PropertyRecommendation } from "@shared/schema";
 
 interface FollowUpStatus {
   needsFollowUp: boolean;
@@ -48,6 +45,10 @@ interface FollowUpSuggestions {
   suggestions: string[];
   urgencyLevel: "high" | "medium" | "low";
   reasonForFollowUp: string;
+}
+
+interface RecommendationsResponse extends PropertyRecommendation {
+  recommendedListings: Listing[];
 }
 
 interface AnalysisPanelProps {
@@ -75,14 +76,6 @@ const leadScoreConfig = {
   },
 };
 
-const quickReplyIcons: Record<string, typeof DollarSign> = {
-  price: DollarSign,
-  inspection: Calendar,
-  property_info: Home,
-  contract: FileText,
-  general: MessageSquare,
-};
-
 export default function AnalysisPanel({ analysis, conversation, onClose, onSendMessage }: AnalysisPanelProps) {
   const { toast } = useToast();
   const { language } = useLanguage();
@@ -91,9 +84,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  const [showListingSelect, setShowListingSelect] = useState(false);
-  const [pendingQuickReply, setPendingQuickReply] = useState<QuickReplyTemplate | null>(null);
-  const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null);
+  const lastFetchedConversationId = useRef<number | null>(null);
+  const hasListingsLoaded = useRef(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!carouselRef.current) return;
@@ -114,6 +108,57 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     setIsDragging(false);
   };
 
+  // Fetch all listings
+  const { data: allListings = [], isSuccess: listingsLoaded } = useQuery<Listing[]>({
+    queryKey: ["/api/listings"],
+  });
+
+  // Track when listings have loaded (using useEffect to comply with React rules)
+  useEffect(() => {
+    if (listingsLoaded) {
+      hasListingsLoaded.current = true;
+    }
+  }, [listingsLoaded]);
+
+  // Fetch AI recommendations - use mutation to control when it fires
+  const recommendationsMutation = useMutation({
+    mutationFn: async (conversationId: number): Promise<RecommendationsResponse> => {
+      const res = await apiRequest("POST", `/api/conversations/${conversationId}/recommendations`, {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setRecommendations(data);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: language === "zh" ? "推薦失敗" : "Recommendation Failed",
+        description: language === "zh" ? "無法獲取 AI 推薦" : "Unable to get AI recommendations",
+      });
+    },
+  });
+
+  // Auto-fetch recommendations when both conversation and listings are ready
+  const conversationId = conversation?.id;
+  useEffect(() => {
+    // Only fetch if: we have a conversation, listings have loaded, guard is not set for this conversation, and not already pending
+    if (conversationId && listingsLoaded && lastFetchedConversationId.current !== conversationId && !recommendationsMutation.isPending) {
+      lastFetchedConversationId.current = conversationId;
+      setRecommendations(null);
+      recommendationsMutation.mutate(conversationId);
+    }
+  }, [conversationId, listingsLoaded]); // Watch both conversation changes and listings readiness
+
+  // Trigger re-fetch when listings change and guard is reset (via handleListingCreated)
+  useEffect(() => {
+    if (conversationId && listingsLoaded && lastFetchedConversationId.current === null && !recommendationsMutation.isPending) {
+      lastFetchedConversationId.current = conversationId;
+      recommendationsMutation.mutate(conversationId);
+    }
+  }, [allListings.length, conversationId, listingsLoaded]); // Watch listings changes
+
+  const isLoadingRecommendations = recommendationsMutation.isPending;
+
   // Fetch follow-up status
   const { data: followUpStatus } = useQuery<FollowUpStatus>({
     queryKey: ["/api/conversations", conversation?.id, "followup"],
@@ -133,28 +178,6 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         ? fetch(`/api/conversations/${conversation.id}/summary`).then(r => r.json())
         : Promise.resolve(null),
     enabled: !!conversation?.id,
-  });
-
-  // Fetch conversation listings (multi-listing support)
-  const { data: conversationListings } = useQuery<ConversationListingsResponse>({
-    queryKey: ["/api/conversations", conversation?.id, "listings"],
-    queryFn: () => 
-      conversation?.id 
-        ? fetch(`/api/conversations/${conversation.id}/listings`).then(r => r.json())
-        : Promise.resolve({ listings: [], primaryListingId: null }),
-    enabled: !!conversation?.id,
-  });
-
-  const linkedListings = conversationListings?.listings || [];
-  const primaryListingId = conversationListings?.primaryListingId;
-  const effectiveListingId = selectedListingId || primaryListingId || conversation?.listingId;
-
-  // Fetch quick reply templates
-  const { data: quickReplies = [] } = useQuery<QuickReplyTemplate[]>({
-    queryKey: ["/api/quick-replies", effectiveListingId],
-    queryFn: () => 
-      fetch(`/api/quick-replies${effectiveListingId ? `?listingId=${effectiveListingId}` : ""}`).then(r => r.json()),
-    enabled: !!conversation,
   });
 
   // Generate follow-up suggestions
@@ -183,6 +206,15 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     },
   });
 
+  // Manually trigger refresh of recommendations (with debounce protection)
+  const handleRefreshRecommendations = () => {
+    if (conversation?.id && !recommendationsMutation.isPending) {
+      lastFetchedConversationId.current = conversation.id; // Update ref to prevent auto-fetch from re-triggering
+      setRecommendations(null);
+      recommendationsMutation.mutate(conversation.id);
+    }
+  };
+
   // Toggle auto follow-up
   const toggleAutoFollowUp = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -208,16 +240,13 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     },
   });
 
-  // Handle quick reply click - with multi-listing support
-  const handleQuickReply = async (template: QuickReplyTemplate, listingId?: number) => {
+  // Handle quick reply from property card
+  const handleQuickReply = async (category: FAQCategory, listingId: number) => {
     try {
       const response = await fetch("/api/quick-replies/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          category: template.category,
-          listingId: listingId || effectiveListingId,
-        }),
+        body: JSON.stringify({ category, listingId }),
       });
       const { message } = await response.json();
       onSendMessage(message);
@@ -230,22 +259,12 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     }
   };
 
-  // Handle quick reply button click with multi-listing check
-  const onQuickReplyClick = (template: QuickReplyTemplate) => {
-    if (linkedListings.length > 1 && !selectedListingId) {
-      setPendingQuickReply(template);
-      setShowListingSelect(true);
-    } else {
-      handleQuickReply(template);
-    }
-  };
-
-  // Handle listing selection from popover
-  const handleListingSelected = (listing: Listing) => {
-    setSelectedListingId(listing.id);
-    if (pendingQuickReply) {
-      handleQuickReply(pendingQuickReply, listing.id);
-      setPendingQuickReply(null);
+  // Handle listing created - invalidate listings and trigger a new recommendations fetch
+  const handleListingCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+    // Reset the guard to allow a new fetch after listing is created
+    if (conversation?.id && !recommendationsMutation.isPending) {
+      lastFetchedConversationId.current = null;
     }
   };
 
@@ -261,24 +280,69 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   }
 
   const config = analysis ? leadScoreConfig[analysis.leadScore] : null;
+  // Show recommended listings if available, otherwise show all listings (but only after recommendations have been fetched)
+  const displayListings = recommendations?.recommendedListings?.length 
+    ? recommendations.recommendedListings 
+    : (recommendations ? [] : allListings.slice(0, 3)); // Empty if recommendations returned nothing, fallback only if never fetched
 
   return (
     <div className="h-full flex flex-col" data-testid="analysis-panel">
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold">{t("ai_assistant_panel")}</h3>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="md:hidden"
-          data-testid="button-close-panel"
-        >
-          <X className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowCreateModal(true)}
+            data-testid="button-add-property"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            {t("add_listing")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="md:hidden"
+            data-testid="button-close-panel"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
+          {/* Property Carousel Section */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  {t("recommended_properties")}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleRefreshRecommendations}
+                  disabled={isLoadingRecommendations}
+                  data-testid="button-refresh-recommendations"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoadingRecommendations ? "animate-spin" : ""}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PropertyCarousel
+                listings={displayListings}
+                onQuickReply={handleQuickReply}
+                isLoading={isLoadingRecommendations}
+                reasoning={recommendations?.reasoning}
+              />
+            </CardContent>
+          </Card>
+
           {/* Follow-Up Alert Banner */}
           {followUpStatus?.needsFollowUp && (
             <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
@@ -302,7 +366,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   ) : (
                     <MessageSquare className="w-4 h-4 mr-2" />
                   )}
-                  生成追蹤建議
+                  {t("generate_followup")}
                 </Button>
               </CardContent>
             </Card>
@@ -341,79 +405,6 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               </CardContent>
             </Card>
           )}
-
-          {/* Quick Reply Buttons */}
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">{t("quick_reply")}</CardTitle>
-                {linkedListings.length > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {effectiveListingId && (
-                      <>
-                        <Home className="w-3 h-3" />
-                        <span className="max-w-[100px] truncate">
-                          {linkedListings.find(l => l.id === effectiveListingId)?.title || t("primary_listing")}
-                        </span>
-                        {linkedListings.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 px-1 text-xs"
-                            onClick={() => setShowListingSelect(true)}
-                            data-testid="button-change-listing"
-                          >
-                            ({linkedListings.length})
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {(() => {
-                  const seen = new Set<string>();
-                  return quickReplies
-                    .filter((template) => {
-                      if (seen.has(template.category)) return false;
-                      seen.add(template.category);
-                      return true;
-                    })
-                    .slice(0, 6)
-                    .map((template) => {
-                      const Icon = quickReplyIcons[template.category] || MessageSquare;
-                      const categoryKey = `quick_reply_${template.category}` as keyof typeof translations.zh;
-                      const translatedLabel = t(categoryKey) || template.label;
-                      return (
-                        <Button
-                          key={template.id}
-                          variant="outline"
-                          size="sm"
-                          className="justify-start text-xs min-w-0 h-auto py-2 flex-1 basis-[calc(50%-0.25rem)]"
-                          onClick={() => onQuickReplyClick(template)}
-                          data-testid={`quick-reply-${template.id}`}
-                        >
-                          <Icon className="w-3 h-3 mr-1 flex-shrink-0 mt-0.5" />
-                          <span className="whitespace-normal text-left">{translatedLabel}</span>
-                        </Button>
-                      );
-                    });
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Listing Select Popover for multi-listing disambiguation */}
-          <ListingSelectPopover
-            open={showListingSelect}
-            onOpenChange={setShowListingSelect}
-            listings={linkedListings}
-            primaryListingId={primaryListingId}
-            onSelect={handleListingSelected}
-          />
 
           {/* AI Summary */}
           <Card>
@@ -578,6 +569,14 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
 
         </div>
       </ScrollArea>
+
+      {/* Create Listing Modal */}
+      <CreateListingModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+        conversationId={conversation?.id}
+        onListingCreated={handleListingCreated}
+      />
     </div>
   );
 }
