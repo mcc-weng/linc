@@ -9,6 +9,7 @@ import ChatInput from "@/components/ChatInput";
 import AnalysisPanel from "@/components/AnalysisPanel";
 import ConversationList from "@/components/ConversationList";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -213,7 +214,7 @@ export default function Chat() {
               <span className="hidden sm:inline">{t("sync_facebook")}</span>
             </Button>
           )}
-          
+
           {/* Facebook Status Indicator */}
           <Badge 
             variant={facebookStatus?.configured ? "default" : "secondary"}
@@ -256,6 +257,7 @@ export default function Chat() {
               <PanelRightOpen className="w-5 h-5" />
             )}
           </Button>
+          <ThemeToggle />
         </div>
       </header>
 

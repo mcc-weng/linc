@@ -23,6 +23,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useLanguage } from "@/lib/LanguageContext";
 import { getTranslation, translations } from "@/lib/language";
 import type { Conversation } from "@shared/schema";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface DashboardData {
   needsFollowUp: Conversation[];
@@ -59,7 +60,7 @@ function ConversationCard({ conversation, showFollowUp = false, language }: { co
   const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
   const score = conversation.leadScore as "hot" | "warm" | "cold" | null;
   const config = score ? leadScoreConfig[score] : null;
-  
+
   const getInactiveHours = () => {
     if (!conversation.lastBuyerMessageAt) return 0;
     const lastTime = new Date(conversation.lastBuyerMessageAt).getTime();
@@ -150,6 +151,7 @@ export default function Dashboard() {
             <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
             {t("refresh")}
           </Button>
+          <ThemeToggle />
         </div>
       </header>
 
