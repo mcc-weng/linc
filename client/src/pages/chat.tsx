@@ -144,7 +144,10 @@ export default function Chat() {
   const handleSelectConversation = (id: number) => {
     setSelectedConversationId(id);
     setAnalysis(null);
-    setIsConversationListOpen(false);
+    // Only collapse conversation panel on small screens (< md breakpoint)
+    if (window.innerWidth < 768) {
+      setIsConversationListOpen(false);
+    }
   };
 
   const formatTimestamp = (timestamp: Date | string): string => {
