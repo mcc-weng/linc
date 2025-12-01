@@ -127,8 +127,22 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   // Fetch AI recommendations - use mutation to control when it fires
   const recommendationsMutation = useMutation({
     mutationFn: async (conversationId: number): Promise<RecommendationsResponse> => {
-      const res = await apiRequest("POST", `/api/conversations/${conversationId}/recommendations`, {});
-      return res.json();
+      // Mock data for testing purposes
+      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
+      
+      const mockRecommendations: RecommendationsResponse = {
+        recommendedListingIds: listings.slice(0, 3).map(l => l.id),
+        recommendedListings: listings.slice(0, 3),
+        reasoning: "根據買家的預算和地點需求，我為您推薦了以下 2-3 個最適合的物件。這些物件都符合您的條件，並且位於交通便利的區域。",
+        buyerIntent: {
+          budget: "AUD 80-100 萬",
+          location: "Chatswood 或 North Sydney",
+          propertyType: "2-3 房公寓",
+          bedrooms: 2,
+        },
+      };
+      
+      return mockRecommendations;
     },
     onSuccess: (data) => {
       setRecommendations(data);
