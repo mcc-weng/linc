@@ -144,6 +144,7 @@ export default function Chat() {
   const handleSelectConversation = (id: number) => {
     setSelectedConversationId(id);
     setAnalysis(null);
+    setIsConversationListOpen(false);
   };
 
   const formatTimestamp = (timestamp: Date | string): string => {
