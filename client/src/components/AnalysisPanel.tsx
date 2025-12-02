@@ -367,7 +367,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 scroll-area-block">
         <div className="p-4 space-y-4">
           {/* Property Carousel Section */}
           <Card className="overflow-hidden w-full">

@@ -10,6 +10,11 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  /* Fix ScrollArea Viewport display table issue */
+  .scroll-area-block [data-radix-scroll-area-viewport] {
+    display: block !important;
+  }
 }
 
 /* LIGHT MODE */
