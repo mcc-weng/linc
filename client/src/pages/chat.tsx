@@ -234,6 +234,8 @@ export default function Chat() {
             )}
           </Badge>
 
+          <ThemeToggle />
+
           {/* Language Toggle */}
           <Button
             variant="ghost"
@@ -257,7 +259,6 @@ export default function Chat() {
               <PanelRightOpen className="w-5 h-5" />
             )}
           </Button>
-          <ThemeToggle />
         </div>
       </header>
 
