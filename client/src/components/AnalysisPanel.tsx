@@ -129,10 +129,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
     mutationFn: async (conversationId: number): Promise<RecommendationsResponse> => {
       // Mock data for testing purposes
       await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
-      
+
       const mockRecommendations: RecommendationsResponse = {
-        recommendedListingIds: listings.slice(0, 3).map(l => l.id),
-        recommendedListings: listings.slice(0, 3),
+        recommendedListingIds: allListings.slice(0, 3).map(l => l.id),
+        recommendedListings: allListings.slice(0, 3),
         reasoning: "根據買家的預算和地點需求，我為您推薦了以下 2-3 個最適合的物件。這些物件都符合您的條件，並且位於交通便利的區域。",
         buyerIntent: {
           budget: "AUD 80-100 萬",
@@ -141,7 +141,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           bedrooms: 2,
         },
       };
-      
+
       return mockRecommendations;
     },
     onSuccess: (data) => {
@@ -389,7 +389,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="min-w-0">
+            <CardContent className="px-4 pb-3 pt-2 overflow-hidden">
               <PropertyCarousel
                 listings={displayListings}
                 onQuickReply={handleQuickReply}
