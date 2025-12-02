@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { 
-  ThermometerSun, 
-  Flame, 
-  Snowflake, 
-  X, 
-  Clock, 
+import {
+  ThermometerSun,
+  Flame,
+  Snowflake,
+  X,
+  Clock,
   AlertTriangle,
   FileText,
   Home,
@@ -34,7 +34,14 @@ import { getTranslation, translations } from "@/lib/language";
 import PropertyCarousel from "@/components/PropertyCarousel";
 import CreateListingModal from "@/components/CreateListingModal";
 import ListingSelectPopover from "@/components/ListingSelectPopover"; // Import the new component
-import type { LeadAnalysisResponse, AISummary, Conversation, Listing, FAQCategory, PropertyRecommendation } from "@shared/schema";
+import type {
+  LeadAnalysisResponse,
+  AISummary,
+  Conversation,
+  Listing,
+  FAQCategory,
+  PropertyRecommendation,
+} from "@shared/schema";
 
 interface FollowUpStatus {
   needsFollowUp: boolean;
@@ -64,7 +71,8 @@ const leadScoreConfig = {
   hot: {
     label: "熱",
     icon: Flame,
-    className: "bg-destructive text-destructive-foreground border-destructive-border",
+    className:
+      "bg-destructive text-destructive-foreground border-destructive-border",
   },
   warm: {
     label: "溫",
@@ -78,18 +86,26 @@ const leadScoreConfig = {
   },
 };
 
-export default function AnalysisPanel({ analysis, conversation, onClose, onSendMessage }: AnalysisPanelProps) {
+export default function AnalysisPanel({
+  analysis,
+  conversation,
+  onClose,
+  onSendMessage,
+}: AnalysisPanelProps) {
   const { toast } = useToast();
   const { language } = useLanguage();
-  const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
+  const t = (key: keyof typeof translations.zh) =>
+    getTranslation(language, key);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [isSelectListingModalOpen, setIsSelectListingModalOpen] = useState(false); // State for the new modal
+  const [isSelectListingModalOpen, setIsSelectListingModalOpen] =
+    useState(false); // State for the new modal
   const [carouselListings, setCarouselListings] = useState<Listing[]>([]);
-  const [recommendations, setRecommendations] = useState<RecommendationsResponse | null>(null); // Updated type
+  const [recommendations, setRecommendations] =
+    useState<RecommendationsResponse | null>(null); // Updated type
   const lastFetchedConversationId = useRef<number | null>(null);
   const hasListingsLoaded = useRef(false);
 
@@ -113,7 +129,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   };
 
   // Fetch all listings
-  const { data: allListings = [], isSuccess: listingsLoaded } = useQuery<Listing[]>({
+  const { data: allListings = [], isSuccess: listingsLoaded } = useQuery<
+    Listing[]
+  >({
     queryKey: ["/api/listings"],
   });
 
@@ -126,14 +144,17 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
 
   // Fetch AI recommendations - use mutation to control when it fires
   const recommendationsMutation = useMutation({
-    mutationFn: async (conversationId: number): Promise<RecommendationsResponse> => {
+    mutationFn: async (
+      conversationId: number,
+    ): Promise<RecommendationsResponse> => {
       // Mock data for testing purposes
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate API delay
 
       const mockRecommendations: RecommendationsResponse = {
-        recommendedListingIds: allListings.slice(0, 3).map(l => l.id),
+        recommendedListingIds: allListings.slice(0, 3).map((l) => l.id),
         recommendedListings: allListings.slice(0, 3),
-        reasoning: "根據買家的預算和地點需求，我為您推薦了以下 2-3 個最適合的物件。這些物件都符合您的條件，並且位於交通便利的區域。",
+        reasoning:
+          "根據買家的預算和地點需求，我為您推薦了以下 2-3 個最適合的物件。這些物件都符合您的條件，並且位於交通便利的區域。",
         buyerIntent: {
           budget: "AUD 80-100 萬",
           location: "Chatswood 或 North Sydney",
@@ -151,7 +172,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       toast({
         variant: "destructive",
         title: language === "zh" ? "推薦失敗" : "Recommendation Failed",
-        description: language === "zh" ? "無法獲取 AI 推薦" : "Unable to get AI recommendations",
+        description:
+          language === "zh"
+            ? "無法獲取 AI 推薦"
+            : "Unable to get AI recommendations",
       });
     },
   });
@@ -160,7 +184,12 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   const conversationId = conversation?.id;
   useEffect(() => {
     // Only fetch if: we have a conversation, listings have loaded, guard is not set for this conversation, and not already pending
-    if (conversationId && listingsLoaded && lastFetchedConversationId.current !== conversationId && !recommendationsMutation.isPending) {
+    if (
+      conversationId &&
+      listingsLoaded &&
+      lastFetchedConversationId.current !== conversationId &&
+      !recommendationsMutation.isPending
+    ) {
       lastFetchedConversationId.current = conversationId;
       setRecommendations(null);
       recommendationsMutation.mutate(conversationId);
@@ -169,7 +198,12 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
 
   // Trigger re-fetch when listings change and guard is reset (via handleListingCreated)
   useEffect(() => {
-    if (conversationId && listingsLoaded && lastFetchedConversationId.current === null && !recommendationsMutation.isPending) {
+    if (
+      conversationId &&
+      listingsLoaded &&
+      lastFetchedConversationId.current === null &&
+      !recommendationsMutation.isPending
+    ) {
       lastFetchedConversationId.current = conversationId;
       recommendationsMutation.mutate(conversationId);
     }
@@ -180,9 +214,11 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   // Fetch follow-up status
   const { data: followUpStatus } = useQuery<FollowUpStatus>({
     queryKey: ["/api/conversations", conversation?.id, "followup"],
-    queryFn: () => 
-      conversation?.id 
-        ? fetch(`/api/conversations/${conversation.id}/followup`).then(r => r.json())
+    queryFn: () =>
+      conversation?.id
+        ? fetch(`/api/conversations/${conversation.id}/followup`).then((r) =>
+            r.json(),
+          )
         : Promise.resolve(null),
     enabled: !!conversation?.id,
     refetchInterval: 30000,
@@ -191,9 +227,11 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   // Fetch AI summary
   const { data: aiSummary } = useQuery<AISummary>({
     queryKey: ["/api/conversations", conversation?.id, "summary"],
-    queryFn: () => 
-      conversation?.id 
-        ? fetch(`/api/conversations/${conversation.id}/summary`).then(r => r.json())
+    queryFn: () =>
+      conversation?.id
+        ? fetch(`/api/conversations/${conversation.id}/summary`).then((r) =>
+            r.json(),
+          )
         : Promise.resolve(null),
     enabled: !!conversation?.id,
   });
@@ -201,7 +239,11 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   // Generate follow-up suggestions
   const followUpMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/conversations/${conversation?.id}/followup/suggestions`, {});
+      const response = await apiRequest(
+        "POST",
+        `/api/conversations/${conversation?.id}/followup/suggestions`,
+        {},
+      );
       return response.json() as Promise<FollowUpSuggestions>;
     },
     onSuccess: (data) => {
@@ -211,7 +253,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         low: language === "zh" ? "低" : "Low",
       };
       toast({
-        title: language === "zh" ? "追蹤建議已生成" : "Follow-up Suggestions Generated",
+        title:
+          language === "zh"
+            ? "追蹤建議已生成"
+            : "Follow-up Suggestions Generated",
         description: `${language === "zh" ? "緊急程度" : "Urgency"}：${urgencyLabels[data.urgencyLevel]}`,
       });
     },
@@ -219,7 +264,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       toast({
         variant: "destructive",
         title: language === "zh" ? "生成失敗" : "Generation Failed",
-        description: language === "zh" ? "無法生成追蹤建議" : "Unable to generate follow-up suggestions",
+        description:
+          language === "zh"
+            ? "無法生成追蹤建議"
+            : "Unable to generate follow-up suggestions",
       });
     },
   });
@@ -236,28 +284,46 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       setRecommendations({
         recommendedListingIds: [listing.id],
         recommendedListings: [listing],
-        reasoning: language === "zh" ? "手動建議的物件" : "Manually suggested property",
-        buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
+        reasoning:
+          language === "zh" ? "手動建議的物件" : "Manually suggested property",
+        buyerIntent: {
+          budget: null,
+          location: null,
+          propertyType: null,
+          bedrooms: null,
+        },
       });
     } else {
-      const exists = recommendations.recommendedListings.some(l => l.id === listing.id);
+      const exists = recommendations.recommendedListings.some(
+        (l) => l.id === listing.id,
+      );
       if (exists) {
         toast({
-          title: language === "zh" ? "物件已存在" : "Property Already Suggested",
-          description: language === "zh" ? "此物件已在推薦列表中" : "This property is already in the recommendations",
+          title:
+            language === "zh" ? "物件已存在" : "Property Already Suggested",
+          description:
+            language === "zh"
+              ? "此物件已在推薦列表中"
+              : "This property is already in the recommendations",
         });
         setIsSelectListingModalOpen(false);
         return;
       }
       setRecommendations({
         ...recommendations,
-        recommendedListingIds: [...recommendations.recommendedListingIds, listing.id],
+        recommendedListingIds: [
+          ...recommendations.recommendedListingIds,
+          listing.id,
+        ],
         recommendedListings: [...recommendations.recommendedListings, listing],
       });
     }
     toast({
       title: language === "zh" ? "已新增建議物件" : "Property Suggested",
-      description: language === "zh" ? `已將「${listing.title}」加入推薦列表` : `Added "${listing.title}" to recommendations`,
+      description:
+        language === "zh"
+          ? `已將「${listing.title}」加入推薦列表`
+          : `Added "${listing.title}" to recommendations`,
     });
     setIsSelectListingModalOpen(false);
   };
@@ -265,24 +331,39 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
   // Toggle auto follow-up
   const toggleAutoFollowUp = useMutation({
     mutationFn: async (enabled: boolean) => {
-      await apiRequest("POST", `/api/conversations/${conversation?.id}/followup/toggle`, { enabled });
+      await apiRequest(
+        "POST",
+        `/api/conversations/${conversation?.id}/followup/toggle`,
+        { enabled },
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversation?.id, "followup"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/conversations", conversation?.id, "followup"],
+      });
     },
   });
 
   // Generate AI summary
   const generateSummaryMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/conversations/${conversation?.id}/summary`, {});
+      const response = await apiRequest(
+        "POST",
+        `/api/conversations/${conversation?.id}/summary`,
+        {},
+      );
       return response.json() as Promise<AISummary>;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", conversation?.id, "summary"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/conversations", conversation?.id, "summary"],
+      });
       toast({
         title: language === "zh" ? "摘要已更新" : "Summary Updated",
-        description: language === "zh" ? "AI 對話摘要已重新生成" : "AI conversation summary has been regenerated",
+        description:
+          language === "zh"
+            ? "AI 對話摘要已重新生成"
+            : "AI conversation summary has been regenerated",
       });
     },
   });
@@ -301,7 +382,10 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       toast({
         variant: "destructive",
         title: language === "zh" ? "發送失敗" : "Send Failed",
-        description: language === "zh" ? "無法生成快速回覆" : "Unable to generate quick reply",
+        description:
+          language === "zh"
+            ? "無法生成快速回覆"
+            : "Unable to generate quick reply",
       });
     }
   };
@@ -320,7 +404,11 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       <div className="h-full flex items-center justify-center p-8 text-center">
         <div className="space-y-2">
           <p className="text-muted-foreground">{t("select_conversation")}</p>
-          <p className="text-sm text-muted-foreground">{language === "zh" ? "查看 AI 分析和快速回覆" : "View AI analysis and quick replies"}</p>
+          <p className="text-sm text-muted-foreground">
+            {language === "zh"
+              ? "查看 AI 分析和快速回覆"
+              : "View AI analysis and quick replies"}
+          </p>
         </div>
       </div>
     );
@@ -328,9 +416,11 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
 
   const config = analysis ? leadScoreConfig[analysis.leadScore] : null;
   // Show recommended listings if available, otherwise show all listings (but only after recommendations have been fetched)
-  const displayListings = recommendations?.recommendedListings?.length 
-    ? recommendations.recommendedListings 
-    : (recommendations ? [] : allListings.slice(0, 3)); // Empty if recommendations returned nothing, fallback only if never fetched
+  const displayListings = recommendations?.recommendedListings?.length
+    ? recommendations.recommendedListings
+    : recommendations
+      ? []
+      : allListings.slice(0, 3); // Empty if recommendations returned nothing, fallback only if never fetched
 
   return (
     <div className="h-full flex flex-col" data-testid="analysis-panel">
@@ -385,7 +475,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   disabled={isLoadingRecommendations}
                   data-testid="button-refresh-recommendations"
                 >
-                  <RefreshCw className={`w-3 h-3 ${isLoadingRecommendations ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`w-3 h-3 ${isLoadingRecommendations ? "animate-spin" : ""}`}
+                  />
                 </Button>
               </div>
             </CardHeader>
@@ -405,13 +497,16 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="font-medium text-sm">{t("needs_followup")}</span>
+                  <span className="font-medium text-sm">
+                    {t("needs_followup")}
+                  </span>
                 </div>
                 <p className="text-xs text-yellow-600 dark:text-yellow-500">
-                  {t("buyer_inactive")} {followUpStatus.hoursInactive} {t("hours_inactive")}
+                  {t("buyer_inactive")} {followUpStatus.hoursInactive}{" "}
+                  {t("hours_inactive")}
                 </p>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full"
                   onClick={() => followUpMutation.mutate()}
                   disabled={followUpMutation.isPending}
@@ -438,7 +533,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div 
+                <div
                   ref={carouselRef}
                   className="flex gap-2 overflow-x-auto pb-2 cursor-grab active:cursor-grabbing"
                   onMouseDown={handleMouseDown}
@@ -447,16 +542,18 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   onMouseLeave={handleMouseUp}
                   data-testid="carousel-suggestions"
                 >
-                  {followUpMutation.data.suggestions.map((suggestion, index) => (
-                    <div 
-                      key={index}
-                      className="flex-shrink-0 min-w-max p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate max-w-xs select-none"
-                      onClick={() => onSendMessage(suggestion)}
-                      data-testid={`followup-suggestion-${index}`}
-                    >
-                      {suggestion}
-                    </div>
-                  ))}
+                  {followUpMutation.data.suggestions.map(
+                    (suggestion, index) => (
+                      <div
+                        key={index}
+                        className="flex-shrink-0 min-w-max p-2 bg-muted rounded-md text-sm cursor-pointer hover-elevate max-w-xs select-none"
+                        onClick={() => onSendMessage(suggestion)}
+                        data-testid={`followup-suggestion-${index}`}
+                      >
+                        {suggestion}
+                      </div>
+                    ),
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -466,7 +563,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">{t("conversation_summary")}</CardTitle>
+                <CardTitle className="text-sm">
+                  {t("conversation_summary")}
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -475,7 +574,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   disabled={generateSummaryMutation.isPending}
                   data-testid="button-refresh-summary"
                 >
-                  <RefreshCw className={`w-3 h-3 ${generateSummaryMutation.isPending ? "animate-spin" : ""}`} />
+                  <RefreshCw
+                    className={`w-3 h-3 ${generateSummaryMutation.isPending ? "animate-spin" : ""}`}
+                  />
                 </Button>
               </div>
             </CardHeader>
@@ -502,20 +603,31 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                   )}
                   {aiSummary.questionsAsked?.length > 0 && (
                     <div>
-                      <p className="text-muted-foreground text-xs mb-1">{language === "zh" ? "問過的問題：" : "Questions Asked:"}</p>
+                      <p className="text-muted-foreground text-xs mb-1">
+                        {language === "zh"
+                          ? "問過的問題："
+                          : "Questions Asked:"}
+                      </p>
                       <ul className="text-xs space-y-1 pl-4">
                         {aiSummary.questionsAsked.map((q, i) => (
-                          <li key={i} className="list-disc">{q}</li>
+                          <li key={i} className="list-disc">
+                            {q}
+                          </li>
                         ))}
                       </ul>
                     </div>
                   )}
                   {aiSummary.pendingActions?.length > 0 && (
                     <div>
-                      <p className="text-muted-foreground text-xs mb-1">{language === "zh" ? "待處理：" : "Pending Actions:"}</p>
+                      <p className="text-muted-foreground text-xs mb-1">
+                        {language === "zh" ? "待處理：" : "Pending Actions:"}
+                      </p>
                       <ul className="space-y-1">
                         {aiSummary.pendingActions.map((action, i) => (
-                          <li key={i} className="flex items-center gap-1 text-xs">
+                          <li
+                            key={i}
+                            className="flex items-center gap-1 text-xs"
+                          >
                             <CheckCircle className="w-3 h-3 text-primary" />
                             {action}
                           </li>
@@ -542,8 +654,13 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">{t("customer_hotness")}</CardTitle>
-                  <Badge className={`${config.className} gap-1`} data-testid="badge-lead-score">
+                  <CardTitle className="text-sm">
+                    {t("customer_hotness")}
+                  </CardTitle>
+                  <Badge
+                    className={`${config.className} gap-1`}
+                    data-testid="badge-lead-score"
+                  >
                     <config.icon className="w-3 h-3" />
                     {config.label}
                   </Badge>
@@ -551,12 +668,20 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">{t("reason")}</p>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {t("reason")}
+                  </p>
                   <p data-testid="text-lead-reason">{analysis.leadReason}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">
-                    {t("suggested_followup")}<span className="text-foreground" data-testid="text-follow-up-days">{analysis.followUpInDays} {t("days_later")}</span>
+                    {t("suggested_followup")}
+                    <span
+                      className="text-foreground"
+                      data-testid="text-follow-up-days"
+                    >
+                      {analysis.followUpInDays} {t("days_later")}
+                    </span>
                   </p>
                 </div>
               </CardContent>
@@ -573,31 +698,41 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 {analysis.buyerProfile.budget && (
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-muted-foreground" />
-                    <span data-testid="text-budget">{analysis.buyerProfile.budget}</span>
+                    <span data-testid="text-budget">
+                      {analysis.buyerProfile.budget}
+                    </span>
                   </div>
                 )}
                 {analysis.buyerProfile.location && (
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span data-testid="text-location">{analysis.buyerProfile.location}</span>
+                    <span data-testid="text-location">
+                      {analysis.buyerProfile.location}
+                    </span>
                   </div>
                 )}
                 {analysis.buyerProfile.propertyType && (
                   <div className="flex items-center gap-2">
                     <Home className="w-4 h-4 text-muted-foreground" />
-                    <span data-testid="text-property-type">{analysis.buyerProfile.propertyType}</span>
+                    <span data-testid="text-property-type">
+                      {analysis.buyerProfile.propertyType}
+                    </span>
                   </div>
                 )}
                 {analysis.buyerProfile.purpose && (
                   <div className="flex items-center gap-2">
                     <Target className="w-4 h-4 text-muted-foreground" />
-                    <span data-testid="text-purpose">{analysis.buyerProfile.purpose}</span>
+                    <span data-testid="text-purpose">
+                      {analysis.buyerProfile.purpose}
+                    </span>
                   </div>
                 )}
                 {analysis.buyerProfile.timeline && (
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span data-testid="text-timeline">{analysis.buyerProfile.timeline}</span>
+                    <span data-testid="text-timeline">
+                      {analysis.buyerProfile.timeline}
+                    </span>
                   </div>
                 )}
               </CardContent>
@@ -616,13 +751,14 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </div>
                 <Switch
                   checked={followUpStatus?.autoFollowUpEnabled || false}
-                  onCheckedChange={(checked) => toggleAutoFollowUp.mutate(checked)}
+                  onCheckedChange={(checked) =>
+                    toggleAutoFollowUp.mutate(checked)
+                  }
                   data-testid="switch-auto-followup"
                 />
               </div>
             </CardContent>
           </Card>
-
         </div>
       </ScrollArea>
 
@@ -641,7 +777,9 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
         listings={allListings || []}
         primaryListingId={null}
         onSelect={handleManualListingSelect}
-        title={language === "zh" ? "建議物件給客戶" : "Suggest Property to Customer"}
+        title={
+          language === "zh" ? "建議物件給客戶" : "Suggest Property to Customer"
+        }
       />
     </div>
   );
