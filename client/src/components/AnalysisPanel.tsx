@@ -370,7 +370,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
           {/* Property Carousel Section */}
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden w-full">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -389,7 +389,7 @@ export default function AnalysisPanel({ analysis, conversation, onClose, onSendM
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="px-4 pb-3 pt-2 overflow-hidden">
+            <CardContent className="px-4 pb-3 pt-2 overflow-hidden w-full max-w-full">
               <PropertyCarousel
                 listings={displayListings}
                 onQuickReply={handleQuickReply}
