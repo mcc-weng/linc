@@ -36,7 +36,8 @@ export default function Chat() {
   const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
-    queryKey: ["/api/conversations"],
+    queryKey: ["/api/conversations", language],
+    queryFn: () => fetch(`/api/conversations?lang=${language}`).then(r => r.json()),
   });
 
   const { data: facebookStatus } = useQuery<FacebookStatus>({
@@ -44,10 +45,10 @@ export default function Chat() {
   });
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery<Message[]>({
-    queryKey: ["/api/conversations", selectedConversationId, "messages"],
+    queryKey: ["/api/conversations", selectedConversationId, "messages", language],
     queryFn: () => 
       selectedConversationId 
-        ? fetch(`/api/conversations/${selectedConversationId}/messages`).then(r => r.json())
+        ? fetch(`/api/conversations/${selectedConversationId}/messages?lang=${language}`).then(r => r.json())
         : Promise.resolve([]),
     enabled: !!selectedConversationId,
     refetchInterval: 5000,

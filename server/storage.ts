@@ -89,15 +89,20 @@ export class MemStorage implements IStorage {
   private listingsMap: Map<number, Listing>;
   private followUpLogsMap: Map<number, FollowUpLog[]>;
   private conversationListingsMap: Map<number, ConversationListing[]>;
+  private englishConversationsMap: Map<number, Conversation>;
+  private englishMessagesMap: Map<number, Message[]>;
   private nextConversationId: number;
   private nextMessageId: number;
   private nextListingId: number;
   private nextFollowUpLogId: number;
   private nextConversationListingId: number;
+  private currentLanguage: "zh" | "en" = "zh";
 
   constructor() {
     this.conversationsMap = new Map();
     this.messagesMap = new Map();
+    this.englishConversationsMap = new Map();
+    this.englishMessagesMap = new Map();
     this.listingsMap = new Map();
     this.followUpLogsMap = new Map();
     this.conversationListingsMap = new Map();
@@ -107,6 +112,10 @@ export class MemStorage implements IStorage {
     this.nextFollowUpLogId = 1;
     this.nextConversationListingId = 1;
     this.initializeMockData();
+  }
+
+  setLanguage(language: "zh" | "en") {
+    this.currentLanguage = language;
   }
 
   private initializeMockData() {
@@ -375,16 +384,207 @@ export class MemStorage implements IStorage {
     ]);
 
     this.nextMessageId = 9;
+
+    // English mock data
+    const engConv1: Conversation = {
+      id: 1,
+      buyerName: "Alex Wang",
+      lastMessage: "I'm looking for a 2-3 bedroom apartment in North Sydney, budget around $1.2-1.5M",
+      timestamp: hoursAgo(2),
+      platform: "Messenger",
+      unreadCount: 2,
+      leadScore: "hot",
+      facebookPsid: null,
+      facebookPageId: null,
+      profilePictureUrl: null,
+      buyerProfile: null,
+      leadReason: null,
+      followUpInDays: null,
+      followUpMessage: null,
+      replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(2),
+      lastAgentMessageAt: hoursAgo(3),
+      needsFollowUp: 0,
+      autoFollowUpEnabled: 0,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: 1,
+      needsAttention: 1,
+      waitingForDocuments: 0,
+    };
+
+    const engConv2: Conversation = {
+      id: 2,
+      buyerName: "Michelle Li",
+      lastMessage: "Do you have any investment properties in Chatswood?",
+      timestamp: hoursAgo(14),
+      platform: "Messenger",
+      unreadCount: 0,
+      leadScore: "warm",
+      facebookPsid: null,
+      facebookPageId: null,
+      profilePictureUrl: null,
+      buyerProfile: null,
+      leadReason: null,
+      followUpInDays: null,
+      followUpMessage: null,
+      replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(14),
+      lastAgentMessageAt: hoursAgo(12),
+      needsFollowUp: 1,
+      autoFollowUpEnabled: 1,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: null,
+      needsAttention: 1,
+      waitingForDocuments: 0,
+    };
+
+    const engConv3: Conversation = {
+      id: 3,
+      buyerName: "David Zhang",
+      lastMessage: "Can you send me the contract for review?",
+      timestamp: hoursAgo(24),
+      platform: "Messenger",
+      unreadCount: 0,
+      leadScore: "warm",
+      facebookPsid: null,
+      facebookPageId: null,
+      profilePictureUrl: null,
+      buyerProfile: null,
+      leadReason: null,
+      followUpInDays: null,
+      followUpMessage: null,
+      replySuggestions: null,
+      lastBuyerMessageAt: hoursAgo(24),
+      lastAgentMessageAt: hoursAgo(20),
+      needsFollowUp: 0,
+      autoFollowUpEnabled: 0,
+      lastAutoFollowUpAt: null,
+      followUpSentCount: 0,
+      aiSummary: null,
+      aiSummaryUpdatedAt: null,
+      listingId: 1,
+      needsAttention: 0,
+      waitingForDocuments: 1,
+    };
+
+    this.englishConversationsMap.set(1, engConv1);
+    this.englishConversationsMap.set(2, engConv2);
+    this.englishConversationsMap.set(3, engConv3);
+
+    this.englishMessagesMap.set(1, [
+      {
+        id: 1,
+        conversationId: 1,
+        content: "Hi! I'm interested in finding a home in North Sydney",
+        role: "buyer",
+        timestamp: hoursAgo(4),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 2,
+        conversationId: 1,
+        content: "Hello! I'd be happy to help you. What's your budget and how many bedrooms do you need?",
+        role: "agent",
+        timestamp: hoursAgo(3),
+        platform: null,
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 3,
+        conversationId: 1,
+        content: "I'm looking for a 2-3 bedroom apartment, budget around $1.2-1.5 million",
+        role: "buyer",
+        timestamp: hoursAgo(2),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 0,
+        isAutoFollowUp: 0,
+      },
+    ]);
+
+    this.englishMessagesMap.set(2, [
+      {
+        id: 4,
+        conversationId: 2,
+        content: "Do you have any investment properties in Chatswood?",
+        role: "buyer",
+        timestamp: hoursAgo(14),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 5,
+        conversationId: 2,
+        content: "Yes! Chatswood is a great investment area. What's your budget range?",
+        role: "agent",
+        timestamp: hoursAgo(12),
+        platform: null,
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+    ]);
+
+    this.englishMessagesMap.set(3, [
+      {
+        id: 6,
+        conversationId: 3,
+        content: "I'm interested in the apartment on Victoria Avenue",
+        role: "buyer",
+        timestamp: hoursAgo(26),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 7,
+        conversationId: 3,
+        content: "Great choice! That's a wonderful property. What information would you like?",
+        role: "agent",
+        timestamp: hoursAgo(25),
+        platform: null,
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+      {
+        id: 8,
+        conversationId: 3,
+        content: "Can you send me the contract for review?",
+        role: "buyer",
+        timestamp: hoursAgo(24),
+        platform: "Messenger",
+        facebookMessageId: null,
+        isRead: 1,
+        isAutoFollowUp: 0,
+      },
+    ]);
   }
 
   async getConversations(): Promise<Conversation[]> {
-    return Array.from(this.conversationsMap.values()).sort(
+    const map = this.currentLanguage === "en" ? this.englishConversationsMap : this.conversationsMap;
+    return Array.from(map.values()).sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   }
 
   async getConversation(id: number): Promise<Conversation | undefined> {
-    return this.conversationsMap.get(id);
+    const map = this.currentLanguage === "en" ? this.englishConversationsMap : this.conversationsMap;
+    return map.get(id);
   }
 
   async getConversationByFacebookPsid(psid: string): Promise<Conversation | undefined> {
@@ -436,7 +636,8 @@ export class MemStorage implements IStorage {
   }
 
   async getMessages(conversationId: number): Promise<Message[]> {
-    return this.messagesMap.get(conversationId) || [];
+    const map = this.currentLanguage === "en" ? this.englishMessagesMap : this.messagesMap;
+    return map.get(conversationId) || [];
   }
 
   async createMessage(insertMessage: InsertMessage): Promise<Message> {

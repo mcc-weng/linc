@@ -194,6 +194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all conversations
   app.get("/api/conversations", async (req, res) => {
     try {
+      const lang = (req.query.lang as string) || "zh";
+      storage.setLanguage(lang === "en" ? "en" : "zh");
       const conversations = await storage.getConversations();
       res.json(conversations);
     } catch (error) {
@@ -227,6 +229,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
+      const lang = (req.query.lang as string) || "zh";
+      storage.setLanguage(lang === "en" ? "en" : "zh");
       const messages = await storage.getMessages(id);
       res.json(messages);
     } catch (error) {
