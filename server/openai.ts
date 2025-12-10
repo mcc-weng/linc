@@ -96,9 +96,10 @@ Please provide the following information (must be in JSON format):
 **Important Requirements:**
 - All content must be in English
 - **replies array must contain exactly 3 suggestions, no more no less**
-- Each suggestion should be 100-200 words
+- Each suggestion should be short and casual, like a natural text message (20-50 words, one or two sentences max)
 - Judge buyer's real needs and purchase intention based on conversation
-- Each suggestion must be a complete string with full reply content`
+- Each suggestion must be a complete string with full reply content
+- Tone should be friendly and natural, not overly formal`
     : `請分析以下對話，並以JSON格式回覆：
 
 對話內容：
@@ -128,9 +129,10 @@ ${conversationText}
 **重要要求：**
 - 所有文字內容必須使用繁體中文
 - **replies 陣列必須包含恰好3個回覆建議，不能多也不能少**
-- 每個回覆建議應該在100-200字之間
+- 每個回覆建議應該簡短，像是自然的文字訊息（20-50字，最多一兩句話）
 - 根據對話內容判斷買家的真實需求和購買意願
-- 每個回覆建議必須是完整的字串，包含完整的回覆內容`;
+- 每個回覆建議必須是完整的字串，包含完整的回覆內容
+- 語氣要自然親切，不要過於正式`;
 
   try {
     const systemPrompt = isEnglish ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH;
@@ -402,7 +404,7 @@ Please provide the following information (must be in JSON format):
 **Important Requirements:**
 - All content must be in English
 - **suggestions array must contain exactly 3 follow-up messages**
-- Each message should be natural, not overly sales-focused
+- Each message should be short and casual, like a natural text message (20-50 words, one or two sentences max)
 - Customize content based on buyer's previous needs and questions
 - If buyer asked specific questions, you can proactively provide answers`
     : `這位買家已經 ${hoursInactive} 小時沒有回覆了。請根據最近對話內容，生成3個追蹤訊息建議：
@@ -424,7 +426,7 @@ ${conversationText}
 **重要要求：**
 - 所有文字內容必須使用繁體中文
 - **suggestions 陣列必須包含恰好3個追蹤訊息**
-- 每個訊息應該自然、不過度推銷
+- 每個訊息應該簡短、像是自然的文字訊息（20-50字，最多一兩句話）
 - 根據買家之前的需求和問題來客製化內容
 - 如果買家問過特定問題，可以主動提供答案`;
 
