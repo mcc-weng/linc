@@ -8,7 +8,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const SYSTEM_PROMPT_ZH = `你是一位專業的澳洲房地產經紀人AI助理，專門分析買家訊息並提供智能回覆建議。
+const SYSTEM_PROMPT = `你是一位專業的澳洲房地產經紀人AI助理，專門分析買家訊息並提供智能回覆建議。
 
 **澳洲房地產市場背景：**
 - 主要熱門區域：Chatswood（車士活）、North Sydney（北雪梨）、Bondi（邦迪）、Parramatta（帕拉馬塔）、Surry Hills、Newtown、Marrickville
@@ -34,73 +34,13 @@ const SYSTEM_PROMPT_ZH = `你是一位專業的澳洲房地產經紀人AI助理�
 4. 包含行動呼籲（如：安排看房、提供物件資訊、討論預算）
 5. 每個回覆建議應該有不同的側重點和策略`;
 
-const SYSTEM_PROMPT_EN = `You are a professional Australian real estate AI assistant specializing in analyzing buyer messages and providing intelligent reply suggestions.
 
-**Australian Real Estate Market Background:**
-- Popular Areas: Chatswood, North Sydney, Bondi, Parramatta, Surry Hills, Newtown, Marrickville
-- Price Ranges: Apartments $600K-$2M+, Houses $1.5M-$5M+
-- Investment Returns: Rental yield 3-5%, Capital appreciation 5-8% annually
-- Purchase Process: Pre-approval → Inspection → Offer → Cooling-off period → Settlement
-- Popular Property Types: 2-3 bedroom apartments, 3-4 bedroom houses/townhouses
-
-**Your Tasks:**
-1. Analyze buyer messages and assign lead ratings (hot/warm/cold)
-2. Extract buyer profile: budget, location preference, property type, purchase purpose, timeline
-3. Generate 3 personalized reply suggestions showing professional and friendly service
-
-**Rating Criteria:**
-- **Hot Lead**: Clear budget, location, timeline, urgent buying intent
-- **Warm Lead**: Interested but conditions unclear, needs more information
-- **Cold Lead**: Initial inquiry, no clear requirements or budget
-
-**Reply Suggestion Principles:**
-1. Use English
-2. Professional yet friendly tone
-3. Provide specific suggestions based on buyer needs (e.g., recommend areas, property types, price ranges)
-4. Include calls to action (e.g., arrange inspection, provide property info, discuss budget)
-5. Each suggestion should have different focus and strategy`;
-
-export async function analyzeConversation(messages: Message[], language: "zh" | "en" = "zh"): Promise<LeadAnalysisResponse> {
+export async function analyzeConversation(messages: Message[]): Promise<LeadAnalysisResponse> {
   const conversationText = messages
-    .map((msg) => `${msg.role === "buyer" ? (language === "en" ? "Buyer" : "買家") : (language === "en" ? "Agent" : "經紀人")}: ${msg.content}`)
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
     .join("\n");
 
-  const isEnglish = language === "en";
-  const prompt = isEnglish
-    ? `Please analyze the following conversation and provide a JSON response:
-
-Conversation:
-${conversationText}
-
-Please provide the following information (must be in JSON format):
-{
-  "leadScore": "hot" | "warm" | "cold",
-  "leadReason": "Brief explanation for the rating (1-2 sentences)",
-  "followUpInDays": number,
-  "followUpMessage": "Suggested follow-up message",
-  "buyerProfile": {
-    "budget": "Budget range (e.g., $1.2-1.5M) or null",
-    "location": "Location preference (e.g., North Sydney, Chatswood) or null",
-    "propertyType": "Property type (e.g., 2-3 bedroom apartment, house) or null",
-    "purpose": "Purchase purpose (e.g., owner-occupied, investment) or null",
-    "timeline": "Purchase timeline (e.g., within 3 months, within 6 months) or null",
-    "notes": "Other notes or null"
-  },
-  "replies": [
-    "First reply suggestion (strategy: build trust, ask for more info)",
-    "Second reply suggestion (strategy: demonstrate expertise, recommend specific property)",
-    "Third reply suggestion (strategy: create urgency, arrange next steps)"
-  ]
-}
-
-**Important Requirements:**
-- All content must be in English
-- **replies array must contain exactly 3 suggestions, no more no less**
-- Each suggestion should be short and casual, like a natural text message (20-50 words, one or two sentences max)
-- Judge buyer's real needs and purchase intention based on conversation
-- Each suggestion must be a complete string with full reply content
-- Tone should be friendly and natural, not overly formal`
-    : `請分析以下對話，並以JSON格式回覆：
+  const prompt = `請分析以下對話，並以JSON格式回覆：
 
 對話內容：
 ${conversationText}
@@ -129,17 +69,15 @@ ${conversationText}
 **重要要求：**
 - 所有文字內容必須使用繁體中文
 - **replies 陣列必須包含恰好3個回覆建議，不能多也不能少**
-- 每個回覆建議應該簡短，像是自然的文字訊息（20-50字，最多一兩句話）
+- 每個回覆建議應該在100-200字之間
 - 根據對話內容判斷買家的真實需求和購買意願
-- 每個回覆建議必須是完整的字串，包含完整的回覆內容
-- 語氣要自然親切，不要過於正式`;
+- 每個回覆建議必須是完整的字串，包含完整的回覆內容`;
 
   try {
-    const systemPrompt = isEnglish ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH;
     const completion = await openai.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
       temperature: 0.7,
@@ -152,10 +90,10 @@ ${conversationText}
       const refusal = completion.choices[0].message.refusal;
       if (refusal) {
         console.error("OpenAI refused the request:", refusal);
-        throw new Error(isEnglish ? "AI refused to process this request" : "AI 拒絕處理此請求");
+        throw new Error("AI 拒絕處理此請求");
       }
       console.error("OpenAI returned no parsed content");
-      throw new Error(isEnglish ? "AI response is empty" : "AI 回覆內容為空");
+      throw new Error("AI 回覆內容為空");
     }
 
     return parsed;
@@ -166,15 +104,14 @@ ${conversationText}
       throw error;
     }
     
-    throw new Error(isEnglish ? "AI analysis service temporarily unavailable, please try again later" : "AI 分析服務暫時無法使用，請稍後再試");
+    throw new Error("AI 分析服務暫時無法使用，請稍後再試");
   }
 }
 
 // Generate AI summary for a conversation
-export async function generateAISummary(messages: Message[], conversation: Conversation, language: "zh" | "en" = "zh"): Promise<AISummary> {
-  const isEnglish = language === "en";
+export async function generateAISummary(messages: Message[], conversation: Conversation): Promise<AISummary> {
   const conversationText = messages
-    .map((msg) => `${msg.role === "buyer" ? (isEnglish ? "Buyer" : "買家") : (isEnglish ? "Agent" : "經紀人")}: ${msg.content}`)
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
     .join("\n");
 
   const lastBuyerTime = conversation.lastBuyerMessageAt 
@@ -182,29 +119,7 @@ export async function generateAISummary(messages: Message[], conversation: Conve
     : Date.now();
   const hoursAgo = Math.floor((Date.now() - lastBuyerTime) / 3600000);
 
-  const prompt = isEnglish
-    ? `Analyze the following conversation and generate a structured summary:
-
-Conversation:
-${conversationText}
-
-Please provide the following information (must be in JSON format):
-{
-  "buyerName": "Buyer name (if mentioned in conversation) or null",
-  "budget": "Budget range or null",
-  "requirements": "Summary of buyer requirements (e.g., 2-bedroom apartment, near school, investment) or null",
-  "questionsAsked": ["List of questions asked by buyer"],
-  "leadIntent": "hot" | "warm" | "cold",
-  "pendingActions": ["Action items, e.g., send contract, schedule inspection, provide quote"],
-  "lastTouchHoursAgo": ${hoursAgo},
-  "conversationSummary": "Conversation summary (2-3 sentences)"
-}
-
-**Important Requirements:**
-- All content must be in English
-- Summary should be concise and clear
-- Action items must be specific and actionable`
-    : `請分析以下對話，並生成結構化摘要：
+  const prompt = `請分析以下對話，並生成結構化摘要：
 
 對話內容：
 ${conversationText}
@@ -227,14 +142,10 @@ ${conversationText}
 - 待處理事項要具體可執行`;
 
   try {
-    const systemPrompt = isEnglish 
-      ? "You are a professional real estate agent assistant responsible for organizing customer conversation summaries."
-      : "你是一位專業的房地產經紀人助理，負責整理客戶對話摘要。";
-    
     const completion = await openai.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: "你是一位專業的房地產經紀人助理，負責整理客戶對話摘要。" },
         { role: "user", content: prompt },
       ],
       temperature: 0.5,
@@ -244,25 +155,23 @@ ${conversationText}
     const parsed = completion.choices[0].message.parsed;
     
     if (!parsed) {
-      throw new Error(isEnglish ? "AI summary generation failed" : "AI 摘要生成失敗");
+      throw new Error("AI 摘要生成失敗");
     }
 
     return parsed;
   } catch (error) {
     console.error("OpenAI summary error:", error);
-    throw new Error(isEnglish ? "AI summary service temporarily unavailable, please try again later" : "AI 摘要服務暫時無法使用，請稍後再試");
+    throw new Error("AI 摘要服務暫時無法使用，請稍後再試");
   }
 }
 
 // Generate property recommendations based on buyer conversation
 export async function generatePropertyRecommendations(
   messages: Message[], 
-  availableListings: Listing[],
-  language: "zh" | "en" = "zh"
+  availableListings: Listing[]
 ): Promise<PropertyRecommendation> {
-  const isEnglish = language === "en";
   const conversationText = messages
-    .map((msg) => `${msg.role === "buyer" ? (isEnglish ? "Buyer" : "買家") : (isEnglish ? "Agent" : "經紀人")}: ${msg.content}`)
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
     .join("\n");
 
   const listingsInfo = availableListings.map(l => ({
@@ -275,33 +184,7 @@ export async function generatePropertyRecommendations(
     propertyType: l.propertyType,
   }));
 
-  const prompt = isEnglish
-    ? `Analyze the following buyer conversation and recommend 1-3 most suitable properties from the available listings:
-
-Conversation:
-${conversationText}
-
-Available Properties:
-${JSON.stringify(listingsInfo, null, 2)}
-
-Please provide the following information (must be in JSON format):
-{
-  "recommendedListingIds": [list of recommended property IDs, max 3, in priority order],
-  "reasoning": "Explanation of why these properties are recommended",
-  "buyerIntent": {
-    "budget": "Budget range or null",
-    "location": "Location preference or null",
-    "propertyType": "Property type preference or null",
-    "bedrooms": number of bedrooms needed or null
-  }
-}
-
-**Important Requirements:**
-- recommendedListingIds must be IDs that exist in the property list
-- If buyer requirements are unclear, recommend 1-2 more general properties
-- Match based on buyer budget, location preference, and property type
-- All content must be in English`
-    : `請分析以下買家對話，並從可用物件列表中推薦1-3個最適合的物件：
+  const prompt = `請分析以下買家對話，並從可用物件列表中推薦1-3個最適合的物件：
 
 對話內容：
 ${conversationText}
@@ -328,14 +211,10 @@ ${JSON.stringify(listingsInfo, null, 2)}
 - 所有文字內容必須使用繁體中文`;
 
   try {
-    const systemPrompt = isEnglish
-      ? "You are a professional real estate agent assistant responsible for recommending suitable properties based on buyer needs."
-      : "你是一位專業的房地產經紀人助理，負責根據買家需求推薦合適的物件。";
-    
     const completion = await openai.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: "你是一位專業的房地產經紀人助理，負責根據買家需求推薦合適的物件。" },
         { role: "user", content: prompt },
       ],
       temperature: 0.5,
@@ -345,7 +224,7 @@ ${JSON.stringify(listingsInfo, null, 2)}
     const parsed = completion.choices[0].message.parsed;
     
     if (!parsed) {
-      throw new Error(isEnglish ? "AI property recommendation generation failed" : "AI 物件推薦生成失敗");
+      throw new Error("AI 物件推薦生成失敗");
     }
 
     // Filter to only include valid listing IDs
@@ -364,19 +243,18 @@ ${JSON.stringify(listingsInfo, null, 2)}
     if (availableListings.length > 0) {
       return {
         recommendedListingIds: [availableListings[0].id],
-        reasoning: isEnglish ? "Unable to analyze buyer needs, showing default property" : "無法分析買家需求，顯示預設物件",
+        reasoning: "無法分析買家需求，顯示預設物件",
         buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
       };
     }
-    throw new Error(isEnglish ? "AI property recommendation service temporarily unavailable" : "AI 物件推薦服務暫時無法使用");
+    throw new Error("AI 物件推薦服務暫時無法使用");
   }
 }
 
 // Generate follow-up suggestions for a conversation
-export async function generateFollowUpSuggestions(messages: Message[], conversation: Conversation, language: "zh" | "en" = "zh"): Promise<FollowUpSuggestion> {
-  const isEnglish = language === "en";
+export async function generateFollowUpSuggestions(messages: Message[], conversation: Conversation): Promise<FollowUpSuggestion> {
   const conversationText = messages
-    .map((msg) => `${msg.role === "buyer" ? (isEnglish ? "Buyer" : "買家") : (isEnglish ? "Agent" : "經紀人")}: ${msg.content}`)
+    .map((msg) => `${msg.role === "buyer" ? "買家" : "經紀人"}: ${msg.content}`)
     .join("\n");
 
   const lastBuyerTime = conversation.lastBuyerMessageAt 
@@ -384,30 +262,7 @@ export async function generateFollowUpSuggestions(messages: Message[], conversat
     : Date.now();
   const hoursInactive = Math.floor((Date.now() - lastBuyerTime) / 3600000);
 
-  const prompt = isEnglish
-    ? `This buyer has not responded for ${hoursInactive} hours. Based on recent conversation, generate 3 follow-up message suggestions:
-
-Recent Conversation:
-${conversationText}
-
-Please provide the following information (must be in JSON format):
-{
-  "suggestions": [
-    "Follow-up message 1 (strategy: show care, re-engage interest)",
-    "Follow-up message 2 (strategy: provide new information or value)",
-    "Follow-up message 3 (strategy: create urgency, drive action)"
-  ],
-  "urgencyLevel": "high" | "medium" | "low",
-  "reasonForFollowUp": "Explanation of why follow-up is needed"
-}
-
-**Important Requirements:**
-- All content must be in English
-- **suggestions array must contain exactly 3 follow-up messages**
-- Each message should be short and casual, like a natural text message (20-50 words, one or two sentences max)
-- Customize content based on buyer's previous needs and questions
-- If buyer asked specific questions, you can proactively provide answers`
-    : `這位買家已經 ${hoursInactive} 小時沒有回覆了。請根據最近對話內容，生成3個追蹤訊息建議：
+  const prompt = `這位買家已經 ${hoursInactive} 小時沒有回覆了。請根據最近對話內容，生成3個追蹤訊息建議：
 
 最近對話內容：
 ${conversationText}
@@ -426,16 +281,15 @@ ${conversationText}
 **重要要求：**
 - 所有文字內容必須使用繁體中文
 - **suggestions 陣列必須包含恰好3個追蹤訊息**
-- 每個訊息應該簡短、像是自然的文字訊息（20-50字，最多一兩句話）
+- 每個訊息應該自然、不過度推銷
 - 根據買家之前的需求和問題來客製化內容
 - 如果買家問過特定問題，可以主動提供答案`;
 
   try {
-    const systemPrompt = isEnglish ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_ZH;
     const completion = await openai.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
       temperature: 0.7,
@@ -445,12 +299,12 @@ ${conversationText}
     const parsed = completion.choices[0].message.parsed;
     
     if (!parsed) {
-      throw new Error(isEnglish ? "AI follow-up suggestion generation failed" : "AI 追蹤建議生成失敗");
+      throw new Error("AI 追蹤建議生成失敗");
     }
 
     return parsed;
   } catch (error) {
     console.error("OpenAI follow-up error:", error);
-    throw new Error(isEnglish ? "AI follow-up service temporarily unavailable, please try again later" : "AI 追蹤服務暫時無法使用，請稍後再試");
+    throw new Error("AI 追蹤服務暫時無法使用，請稍後再試");
   }
 }

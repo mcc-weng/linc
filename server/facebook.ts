@@ -259,23 +259,9 @@ export async function syncFacebookConversations(): Promise<void> {
       // Find the participant that is not the page (the user)
       // Filter out the page from participants to find the customer
       const participants = fbConv.participants?.data || [];
+      const customer = participants.find(p => p.id !== pageId) || participants[0];
       
-      let customer;
-      if (pageId) {
-        // If we have the page ID, use it to filter
-        customer = participants.find(p => p.id !== pageId);
-      } else {
-        // If we don't have page ID (due to permissions), assume there are 2 participants
-        // and pick the one that's not a known page ID pattern or just use the first non-page-looking one
-        customer = participants.length > 1 ? participants[1] : participants[0];
-      }
-      
-      if (!customer) {
-        console.log("No customer participant found in conversation:", fbConv.id);
-        continue;
-      }
-      
-      console.log(`Processing conversation with customer PSID: ${customer.id}, name: ${customer.name}`);
+      if (!customer) continue;
       
       // Check if conversation already exists
       let conversation = await storage.getConversationByFacebookPsid(customer.id);
@@ -291,19 +277,13 @@ export async function syncFacebookConversations(): Promise<void> {
         };
         
         conversation = await storage.createConversation(newConversation);
-        console.log(`Created new conversation with ID: ${conversation.id} for PSID: ${customer.id}`);
-      } else {
-        console.log(`Conversation already exists with ID: ${conversation.id} for PSID: ${customer.id}`);
       }
       
       // Sync messages for this conversation
       const fbMessages = await getConversationMessages(fbConv.id);
-      console.log(`Fetched ${fbMessages.length} messages from Facebook for conversation ${fbConv.id}`);
-      
       const existingMessages = await storage.getMessages(conversation.id);
       const existingMessageIds = new Set(existingMessages.map(m => m.facebookMessageId));
       
-      let newMessagesCount = 0;
       for (const fbMsg of fbMessages.reverse()) { // Reverse to get oldest first
         if (!fbMsg.message || existingMessageIds.has(fbMsg.id)) continue;
         
@@ -320,9 +300,7 @@ export async function syncFacebookConversations(): Promise<void> {
         };
         
         await storage.createMessage(newMessage);
-        newMessagesCount++;
       }
-      console.log(`Added ${newMessagesCount} new messages to conversation ${conversation.id}`);
     }
     
     console.log(`Synced ${fbConversations.length} Facebook conversations`);

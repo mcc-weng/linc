@@ -9,11 +9,13 @@ import type { LeadAnalysisResponse } from "@shared/schema";
 
 interface ChatInputProps {
   onSend: (message: string, platform: string) => void;
+  onAnalyze: () => void;
   isLoading?: boolean;
+  hasMessages?: boolean;
   analysis: LeadAnalysisResponse | null;
 }
 
-export default function ChatInput({ onSend, isLoading = false, analysis }: ChatInputProps) {
+export default function ChatInput({ onSend, onAnalyze, isLoading = false, hasMessages = false, analysis }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const { language } = useLanguage();
   const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
@@ -108,6 +110,22 @@ export default function ChatInput({ onSend, isLoading = false, analysis }: ChatI
 
       {/* Input Area */}
       <div className="p-4 space-y-3">
+        {hasMessages && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAnalyze}
+              disabled={isLoading}
+              className="ml-auto"
+              data-testid="button-analyze"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {t("analyze")}
+            </Button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Textarea
             value={message}

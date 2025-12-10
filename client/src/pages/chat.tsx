@@ -36,8 +36,7 @@ export default function Chat() {
   const t = (key: keyof typeof translations.zh) => getTranslation(language, key);
 
   const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
-    queryKey: ["/api/conversations", language],
-    queryFn: () => fetch(`/api/conversations?lang=${language}`).then(r => r.json()),
+    queryKey: ["/api/conversations"],
   });
 
   const { data: facebookStatus } = useQuery<FacebookStatus>({
@@ -45,10 +44,10 @@ export default function Chat() {
   });
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery<Message[]>({
-    queryKey: ["/api/conversations", selectedConversationId, "messages", language],
+    queryKey: ["/api/conversations", selectedConversationId, "messages"],
     queryFn: () => 
       selectedConversationId 
-        ? fetch(`/api/conversations/${selectedConversationId}/messages?lang=${language}`).then(r => r.json())
+        ? fetch(`/api/conversations/${selectedConversationId}/messages`).then(r => r.json())
         : Promise.resolve([]),
     enabled: !!selectedConversationId,
     refetchInterval: 5000,
@@ -57,10 +56,8 @@ export default function Chat() {
   // Sync Facebook conversations
   const syncFacebookMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/facebook/sync", {}),
-    onSuccess: async () => {
-      // Force invalidate and refetch
-      await queryClient.invalidateQueries({ queryKey: ["/api/conversations", language] });
-      await queryClient.refetchQueries({ queryKey: ["/api/conversations", language] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       toast({
         title: "同步完成",
         description: "已從 Facebook 同步對話",
@@ -100,26 +97,23 @@ export default function Chat() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (conversationId: number) => {
-      const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze?lang=${language}`, { conversationId });
+      const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze`, { conversationId });
       return response.json() as Promise<LeadAnalysisResponse>;
     },
     onSuccess: (data: LeadAnalysisResponse) => {
       setAnalysis(data);
       setIsAnalysisPanelOpen(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", language] });
-      const scoreLabel = language === "en" 
-        ? (data.leadScore === "hot" ? "Hot Lead" : data.leadScore === "warm" ? "Warm Lead" : "Cold Lead")
-        : (data.leadScore === "hot" ? "熱客戶" : data.leadScore === "warm" ? "溫客戶" : "冷客戶");
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
       toast({
-        title: language === "en" ? "AI Analysis Complete" : "AI 分析完成",
-        description: language === "en" ? `Lead Rating: ${scoreLabel}` : `客戶評級：${scoreLabel}`,
+        title: "AI 分析完成",
+        description: `客戶評級：${data.leadScore === "hot" ? "熱客戶" : data.leadScore === "warm" ? "溫客戶" : "冷客戶"}`,
       });
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
-        title: language === "en" ? "AI Analysis Failed" : "AI 分析失敗",
-        description: error.message || (language === "en" ? "Unable to analyze conversation, please try again later" : "無法分析對話，請稍後再試"),
+        title: "AI 分析失敗",
+        description: error.message || "無法分析對話，請稍後再試",
       });
     },
   });
@@ -132,13 +126,9 @@ export default function Chat() {
     }
   };
 
-  // Auto-analyze conversation when messages arrive
   useEffect(() => {
     scrollToBottom();
-    if (selectedConversationId && messages.length > 0 && !analysis) {
-      analyzeMutation.mutate(selectedConversationId);
-    }
-  }, [selectedConversationId, messages.length, language]);
+  }, [messages]);
 
   const handleSendMessage = (content: string, platform?: string) => {
     if (!selectedConversationId) return;
@@ -154,6 +144,11 @@ export default function Chat() {
   // Wrapper for AnalysisPanel that uses conversation's platform
   const handleSendFromPanel = (message: string) => {
     handleSendMessage(message);
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedConversationId) return;
+    analyzeMutation.mutate(selectedConversationId);
   };
 
   const handleSelectConversation = (id: number) => {
@@ -320,7 +315,9 @@ export default function Chat() {
           {selectedConversation && (
             <ChatInput
               onSend={handleSendMessage}
+              onAnalyze={handleAnalyze}
               isLoading={isLoading}
+              hasMessages={messages.filter(m => m.role !== "system").length > 0}
               analysis={analysis}
             />
           )}

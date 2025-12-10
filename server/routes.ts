@@ -194,8 +194,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all conversations
   app.get("/api/conversations", async (req, res) => {
     try {
-      const lang = (req.query.lang as string) || "zh";
-      storage.setLanguage(lang === "en" ? "en" : "zh");
       const conversations = await storage.getConversations();
       res.json(conversations);
     } catch (error) {
@@ -229,8 +227,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
-      const lang = (req.query.lang as string) || "zh";
-      storage.setLanguage(lang === "en" ? "en" : "zh");
       const messages = await storage.getMessages(id);
       res.json(messages);
     } catch (error) {
@@ -310,9 +306,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const lang = (req.query.lang as string) || "zh";
-      const language = lang === "en" ? "en" : "zh";
-
       const validation = leadAnalysisRequestSchema.safeParse({
         conversationId: id,
       });
@@ -324,14 +317,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      storage.setLanguage(language);
       const messages = await storage.getMessages(id);
       
       if (messages.length === 0) {
-        return res.status(400).json({ error: language === "en" ? "No messages to analyze" : "對話沒有訊息可供分析" });
+        return res.status(400).json({ error: "對話沒有訊息可供分析" });
       }
 
-      const analysis = await analyzeConversation(messages, language);
+      const analysis = await analyzeConversation(messages);
 
       // Save complete analysis to storage
       await storage.updateLeadAnalysis(id, {
@@ -347,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error analyzing conversation:", error);
       
-      const errorMessage = error instanceof Error ? error.message : "AI analysis error";
+      const errorMessage = error instanceof Error ? error.message : "AI 分析服務發生錯誤";
       res.status(500).json({ 
         error: errorMessage,
       });
@@ -391,27 +383,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const lang = (req.query.lang as string) || "zh";
-      const language = lang === "en" ? "en" : "zh";
-
       const conversation = await storage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
-      storage.setLanguage(language);
       const messages = await storage.getMessages(id);
       if (messages.length === 0) {
-        return res.status(400).json({ error: language === "en" ? "No messages to analyze" : "對話沒有訊息可供分析" });
+        return res.status(400).json({ error: "對話沒有訊息可供分析" });
       }
 
-      const summary = await generateAISummary(messages, conversation, language);
+      const summary = await generateAISummary(messages, conversation);
       await storage.updateAISummary(id, summary);
 
       res.json(summary);
     } catch (error) {
       console.error("Error generating AI summary:", error);
-      const errorMessage = error instanceof Error ? error.message : "AI summary generation failed";
+      const errorMessage = error instanceof Error ? error.message : "AI 摘要生成失敗";
       res.status(500).json({ error: errorMessage });
     }
   });
@@ -466,23 +454,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const lang = (req.query.lang as string) || "zh";
-      const language = lang === "en" ? "en" : "zh";
-
       const conversation = await storage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
-      storage.setLanguage(language);
       const messages = await storage.getMessages(id);
       if (messages.length === 0) {
-        return res.status(400).json({ error: language === "en" ? "No messages" : "對話沒有訊息" });
+        return res.status(400).json({ error: "對話沒有訊息" });
       }
 
       // Get last 5 messages for context
       const recentMessages = messages.slice(-5);
-      const suggestions = await generateFollowUpSuggestions(recentMessages, conversation, language);
+      const suggestions = await generateFollowUpSuggestions(recentMessages, conversation);
 
       // Log the follow-up suggestion generation
       await storage.logFollowUpAction({
@@ -494,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(suggestions);
     } catch (error) {
       console.error("Error generating follow-up suggestions:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to generate follow-up suggestions";
+      const errorMessage = error instanceof Error ? error.message : "無法生成追蹤建議";
       res.status(500).json({ error: errorMessage });
     }
   });
@@ -539,18 +523,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid conversation ID" });
       }
 
-      const lang = (req.query.lang as string) || "zh";
-      const language = lang === "en" ? "en" : "zh";
-
       const conversation = await storage.getConversation(id);
       if (!conversation) {
         return res.status(404).json({ error: "Conversation not found" });
       }
 
-      storage.setLanguage(language);
       const messages = await storage.getMessages(id);
       if (messages.length === 0) {
-        return res.status(400).json({ error: language === "en" ? "No messages" : "對話沒有訊息" });
+        return res.status(400).json({ error: "對話沒有訊息" });
       }
 
       // Get all available listings
@@ -559,14 +539,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({
           recommendedListingIds: [],
           recommendedListings: [],
-          reasoning: language === "en" ? "No properties available" : "目前沒有可用物件",
+          reasoning: "目前沒有可用物件",
           buyerIntent: { budget: null, location: null, propertyType: null, bedrooms: null },
         });
       }
 
       // Get last 10 messages for context
       const recentMessages = messages.slice(-10);
-      const recommendations = await generatePropertyRecommendations(recentMessages, allListings, language);
+      const recommendations = await generatePropertyRecommendations(recentMessages, allListings);
 
       // Get full listing details for recommended IDs
       const recommendedListings = allListings.filter(
@@ -579,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error generating property recommendations:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to generate property recommendations";
+      const errorMessage = error instanceof Error ? error.message : "無法生成物件推薦";
       res.status(500).json({ error: errorMessage });
     }
   });
