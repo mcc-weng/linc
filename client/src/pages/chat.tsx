@@ -98,23 +98,26 @@ export default function Chat() {
 
   const analyzeMutation = useMutation({
     mutationFn: async (conversationId: number) => {
-      const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze`, { conversationId });
+      const response = await apiRequest("POST", `/api/conversations/${conversationId}/analyze?lang=${language}`, { conversationId });
       return response.json() as Promise<LeadAnalysisResponse>;
     },
     onSuccess: (data: LeadAnalysisResponse) => {
       setAnalysis(data);
       setIsAnalysisPanelOpen(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", language] });
+      const scoreLabel = language === "en" 
+        ? (data.leadScore === "hot" ? "Hot Lead" : data.leadScore === "warm" ? "Warm Lead" : "Cold Lead")
+        : (data.leadScore === "hot" ? "熱客戶" : data.leadScore === "warm" ? "溫客戶" : "冷客戶");
       toast({
-        title: "AI 分析完成",
-        description: `客戶評級：${data.leadScore === "hot" ? "熱客戶" : data.leadScore === "warm" ? "溫客戶" : "冷客戶"}`,
+        title: language === "en" ? "AI Analysis Complete" : "AI 分析完成",
+        description: language === "en" ? `Lead Rating: ${scoreLabel}` : `客戶評級：${scoreLabel}`,
       });
     },
     onError: (error: Error) => {
       toast({
         variant: "destructive",
-        title: "AI 分析失敗",
-        description: error.message || "無法分析對話，請稍後再試",
+        title: language === "en" ? "AI Analysis Failed" : "AI 分析失敗",
+        description: error.message || (language === "en" ? "Unable to analyze conversation, please try again later" : "無法分析對話，請稍後再試"),
       });
     },
   });
