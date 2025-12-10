@@ -621,8 +621,11 @@ export class MemStorage implements IStorage {
       needsAttention: insertConversation.needsAttention || 0,
       waitingForDocuments: insertConversation.waitingForDocuments || 0,
     };
+    // Store to both maps to ensure visibility regardless of language context
     this.conversationsMap.set(id, conversation);
+    this.englishConversationsMap.set(id, conversation);
     this.messagesMap.set(id, []);
+    this.englishMessagesMap.set(id, []);
     return conversation;
   }
 

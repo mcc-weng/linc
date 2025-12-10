@@ -57,8 +57,10 @@ export default function Chat() {
   // Sync Facebook conversations
   const syncFacebookMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/facebook/sync", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", language] });
+    onSuccess: async () => {
+      // Force invalidate and refetch
+      await queryClient.invalidateQueries({ queryKey: ["/api/conversations", language] });
+      await queryClient.refetchQueries({ queryKey: ["/api/conversations", language] });
       toast({
         title: "同步完成",
         description: "已從 Facebook 同步對話",
