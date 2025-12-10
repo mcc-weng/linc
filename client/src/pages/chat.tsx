@@ -130,9 +130,13 @@ export default function Chat() {
     }
   };
 
+  // Auto-analyze conversation when messages arrive
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+    if (selectedConversationId && messages.length > 0 && !analysis) {
+      analyzeMutation.mutate(selectedConversationId);
+    }
+  }, [selectedConversationId, messages.length, language]);
 
   const handleSendMessage = (content: string, platform?: string) => {
     if (!selectedConversationId) return;
@@ -148,11 +152,6 @@ export default function Chat() {
   // Wrapper for AnalysisPanel that uses conversation's platform
   const handleSendFromPanel = (message: string) => {
     handleSendMessage(message);
-  };
-
-  const handleAnalyze = async () => {
-    if (!selectedConversationId) return;
-    analyzeMutation.mutate(selectedConversationId);
   };
 
   const handleSelectConversation = (id: number) => {
@@ -319,9 +318,7 @@ export default function Chat() {
           {selectedConversation && (
             <ChatInput
               onSend={handleSendMessage}
-              onAnalyze={handleAnalyze}
               isLoading={isLoading}
-              hasMessages={messages.filter(m => m.role !== "system").length > 0}
               analysis={analysis}
             />
           )}
