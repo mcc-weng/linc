@@ -105,9 +105,9 @@ export default function ConversationList({ conversations, selectedId, onSelect, 
                 data-testid={`conversation-${conv.id}`}
               >
                 {/* Avatar */}
-                <Avatar className="w-10 h-10 flex-shrink-0">
+                <Avatar className="w-10 h-10 aspect-square flex-shrink-0">
                   {conv.profilePictureUrl ? (
-                    <AvatarImage src={conv.profilePictureUrl} alt={conv.buyerName} />
+                    <AvatarImage src={conv.profilePictureUrl} alt={conv.buyerName} className="aspect-square object-cover" />
                   ) : null}
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     <User className="w-5 h-5" />
